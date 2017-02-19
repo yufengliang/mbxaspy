@@ -1,0 +1,103 @@
+## Main
+
+	Initialize
+
+	Input:
+
+		Input from first-principles calculations
+
+			Op 1 ) QE and shirley_xas 
+			Input eigenvalues, eigenvectors, projectors, and single-particle matrix elements
+
+			Op 2 ) QE with norm-conserving pseudos
+			Input eigenvalues and wavefunctions from *.save
+
+		Input variables from user-defined input files
+		
+	Calculate the \xi matrix for a given k-point
+
+	Calculate x-ray spectra
+
+# Initialization 
+
+- [] init.py
+
+	 Detect if it is python 2.x or 3.x.
+
+	 Detect if it is mpi enviroment.
+
+	 Decide which version of numpy or scipy will be used. 
+	 Note that scipy linear algebra package is more efficient.
+
+- [] mpi_init.py
+
+	 Initialize the mpi environment: define pools and split up k-points by pools.
+	 Then split up band group over within each pool.
+
+- [] Constants
+
+	 Define constants or import them from a file.
+
+	 These constants should be globals:
+	 http://stackoverflow.com/questions/13034496/using-global-variables-between-files
+
+# I/O
+
+- [] Input from fortran binary files
+
+	 The local fortran code shirley_xas output the following quantities for 
+	 a given self-consistent-field (scf) calculation:
+
+	 1) *.eigval, the energies for the chosen number of bands, all double-precision
+
+	 2) *.eigvec, the eigenvectors for the chosen bands, which are expanded in the 
+		optimal basis set:
+
+			< B_i | nk > 
+
+		all double-complex
+
+	 3) *.proj, the periodic function | nk > projected onto the PAW projectors:
+
+			< beta_l | nk >
+
+		all double-complex
+
+ 	 4) *.xmat, the core-level single-particle matrix element:
+
+			< nk | \psi_h > 
+
+		all double-complex
+
+	Write up an utility that can read all of these quantities and convert them into python arrays.
+	Because these quantities may need to be distributed over different cores, so be prepared to
+	read a certain block of a binary file with a given offset.
+
+- [] Input variables from human-readable files (like Input_Block.in)
+
+	Image that there is such an file:
+
+	"
+	nbnd_f = 300 # number of final-state orbitals
+	# is_gamma = 
+	
+	nbnd_i=400
+	job_done = .true.
+	is_absorption =FALSE
+	ecut = 30.0
+	"
+
+	should return a dictionary like:
+	{'nbnd_f' : '300', 'nbnd_i' : '400', 'job_done' : '.true.', 'is_absorption' : 'FALSE', 'ecut' : '30.0'}
+
+	Write up a parser to realize this or you may use some open-source parser shared online.
+
+- [] Message printer and result output
+
+	write up a print function that can adapt to python 2.x or 3.x
+
+# Calculate the \xi matrix
+
+- [] An utility to calculate \xi
+
+# Calculate Afc and x-ray spectra 
