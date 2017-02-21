@@ -73,7 +73,7 @@
 	Because these quantities may need to be distributed over different cores, so be prepared to
 	read a certain block of a binary file with a given offset.
 
-- [] Input variables from human-readable files (like Input_Block.in)
+- [X] Input variables from human-readable files (like Input_Block.in)
 
 	Image that there is such an file:
 
