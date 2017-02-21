@@ -1,7 +1,6 @@
 """ a module for input and output """
 
 from __future__ import print_function
-from ast import parse
 from struct import pack, unpack
 
 def input_from_binary(fhandle, data_type, ndata, offset):

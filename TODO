@@ -20,19 +20,19 @@
 
 # Initialization 
 
-- [] init.py
+- [...] init.py
 
-	 Detect if it is python 2.x or 3.x.
+	 Detect if it is python 2.x or 3.x. DONE
 
-	 Detect if it is mpi enviroment.
+	 Detect if it is mpi enviroment. DONE
 
 	 Decide which version of numpy or scipy will be used. 
 	 Note that scipy linear algebra package is more efficient.
 
-- [] mpi_init.py
+	 Initialize the mpi environment. DONE
 
-	 Initialize the mpi environment: define pools and split up k-points by pools.
-	 Then split up band group over within each pool.
+	 Define pools and split up k-points by pools.
+	 Then split up band group over within each pool. 
 
 - [] Constants
 
@@ -73,7 +73,7 @@
 	Because these quantities may need to be distributed over different cores, so be prepared to
 	read a certain block of a binary file with a given offset.
 
-- [X] Input variables from human-readable files (like Input_Block.in)
+- [...] Input variables from human-readable files (like Input_Block.in)
 
 	Image that there is such an file:
 
@@ -90,7 +90,9 @@
 	should return a dictionary like:
 	{'nbnd_f' : '300', 'nbnd_i' : '400', 'job_done' : '.true.', 'is_absorption' : 'FALSE', 'ecut' : '30.0'}
 
-	Write up a parser to realize this or you may use some open-source parser shared online.
+	Write up a parser to realize this or you may use some open-source parser shared online. DONE
+
+	Can this also be used to import an array ?
 
 - [] Message printer and result output
 
