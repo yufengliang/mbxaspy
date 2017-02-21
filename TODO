@@ -43,7 +43,7 @@
 
 # I/O
 
-- [] Input from fortran binary files
+- [X] Input from fortran binary files
 
 	 The local fortran code shirley_xas output the following quantities for 
 	 a given self-consistent-field (scf) calculation:
