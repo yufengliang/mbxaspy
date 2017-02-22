@@ -3,6 +3,8 @@
 from __future__ import print_function
 from struct import pack, unpack
 
+from utils import *
+
 def input_from_binary(fhandle, data_type, ndata, offset):
     """ input data from a binary file 
 
@@ -42,15 +44,6 @@ def input_from_binary(fhandle, data_type, ndata, offset):
     return reslist
 
 
-def is_valid_variable_name(name):
-    """test if name is a valid python variable name"""
-    try:
-        parse('{} = None'.format(name))
-        return True
-    except (SyntaxError, ValueError, TypeError) as err:
-        return False
-
-
 def input_arguments(fname):
     """ input arguments from a user-defined file
 
@@ -87,6 +80,7 @@ def input_arguments(fname):
                         if is_valid_variable_name(name):
                             var_dict.update({name : value})
     return var_dict
+
 
 if __name__ == '__main__':
     print(__file__ + ": the i/o module for mbxaspy")

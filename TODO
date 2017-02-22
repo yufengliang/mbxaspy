@@ -27,15 +27,16 @@
 	 Detect if it is mpi enviroment. DONE
 
 	 Decide which version of numpy or scipy will be used. 
-	 Note that scipy linear algebra package is more efficient.
+	 Note that scipy linear algebra package is more efficient. DONE
 
 	 Initialize the mpi environment. DONE
 
 	 Define pools and split up k-points by pools.
 	 Then split up band group over within each pool. 
 
-- [] Constants
+- [] defs.py
 
+	 Define classes
 	 Define constants or import them from a file.
 
 	 These constants should be globals:
@@ -94,9 +95,10 @@
 
 	Can this also be used to import an array ?
 
-- [] Message printer and result output
+- [X] Message printer: using para.print
 
-	write up a print function that can adapt to python 2.x or 3.x
+- [ ] result output
+
 
 # Calculate the \xi matrix
 
