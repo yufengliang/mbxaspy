@@ -1,9 +1,17 @@
 """ a module for input and output """
 
 from __future__ import print_function
+
+
 from struct import pack, unpack
+import re
+
 
 from utils import *
+
+
+quote = {'"', "'"}
+delimiter = {';', ',', ' ', '\t', '\n'}
 
 def input_from_binary(fhandle, data_type, ndata, offset):
     """ input data from a binary file 
@@ -44,10 +52,10 @@ def input_from_binary(fhandle, data_type, ndata, offset):
     return reslist
 
 
-def input_arguments(fname):
+def input_arguments(lines):
     """ input arguments from a user-defined file
 
-    Given:
+    Given lines = 
 
         "
     	nbnd_f = 300 # number of final-state orbitals
@@ -68,22 +76,47 @@ def input_arguments(fname):
     """
 
     var_dict = {}
-    with open(fname, 'r') as fh:
-        # read lines and only keep the non-comment part
-        for line in fh:
-            for block in line.split('#')[0].split(';'):
-                for item in block.split(','):
-                    # look for assignment
-                    items = item.split('=')
-                    if len(items) > 1:
-                        name, value = items[0].strip(), items[1].strip()
-                        if is_valid_variable_name(name):
-                            var_dict.update({name : value})
+    if lines[-1] != '\n': lines += '\n'
+    lines = re.sub('#.*\n', '#', lines) # convert all comments into delimiters
+    for block in lines.split('#'):
+        name = None
+        # look for assignment
+        for item in block.split('='):
+            value = None
+            new_name = item
+            # if value is string
+            for s in quote:
+                item_str = item.split(s)
+                if len(item_str) > 2: # found quotation marks
+                    value = item_str[1] # the string in the first quote
+                    new_name = item_str[-1].strip() # last term
+            # value not a string
+            if value is None:
+                value = item
+                for s in delimiter:
+                    try:
+                        value = list(filter(None, value.split(s)))[0] # always take the first meaningful string
+                    except IndexError:
+                        value = ''
+                        break
+                for s in delimiter:
+                    try:
+                        new_name = list(filter(None, new_name.split(s)))[-1] # always take the last meaningful string
+                    except IndexError:
+                        new_name = ''
+                        break
+            if is_valid_variable_name(name) and value is not None:
+                var_dict.update({name : value})
+            name = new_name
     return var_dict
+
+
+__all__ = ['input_from_binary', 'input_arguments']
 
 
 if __name__ == '__main__':
     print(__file__ + ": the i/o module for mbxaspy")
     # debug
-    var_dict = input_arguments('test/test_io/sample.in')
+    with open('test/test_io/sample.in', 'r') as f:
+        var_dict = input_arguments(f.read())
     print(var_dict)

@@ -34,7 +34,7 @@
 	 Define pools and split up k-points by pools.
 	 Then split up band group over within each pool. 
 
-- [] defs.py
+- [...] defs.py
 
 	 Define classes
 	 Define constants or import them from a file.
@@ -74,7 +74,7 @@
 	Because these quantities may need to be distributed over different cores, so be prepared to
 	read a certain block of a binary file with a given offset.
 
-- [...] Input variables from human-readable files (like Input_Block.in)
+- [X] Input variables from human-readable files (like Input_Block.in)
 
 	Image that there is such an file:
 
@@ -93,12 +93,35 @@
 
 	Write up a parser to realize this or you may use some open-source parser shared online. DONE
 
-	Can this also be used to import an array ?
+	Can this also be used to import an array ? DONE 
 
 - [X] Message printer: using para.print
 
 - [ ] result output
 
+	 You may use stdout
+
+- [ ] Input variables for an actual mbxas run
+
+	 Required:
+
+	 nbnd, nk, nelect, ncore (# of core excited atoms)
+	 which can be found in *.info in the scf folder
+
+	 *.eigval, *.eigvec, *.proj, *.xmat (only for ground-state)
+	 
+	 sij.dat for core excited atoms.
+	 sij.dat in the pseudo folder should have the format:
+	 elem.ground_pseudo_name.sij such as O.pbe-van-yufengl.sij, O.pbe-van_bm.sij, ...
+
+	 A sample of input file (taken from stdin)
+
+	 scf_type = 'shirley_xas' # there should be more in future
+	 ipath = '/your_path/to/the_initial_state_scf' # like XAS/system_name/GS
+	 fpath = '/your_path/to/the_final_state_scf'   # like XAS/system_name/Xatom_1
+	 nbnd = user_specified_value     # default: initial-state nbnd
+	 nelect = user_specified_value   # default: initial-state nelect
+	 ... # other user-defined values
 
 # Calculate the \xi matrix
 
