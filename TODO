@@ -36,11 +36,9 @@
 
 - [...] defs.py
 
-	 Define classes
-	 Define constants or import them from a file.
-
-	 These constants should be globals:
-	 http://stackoverflow.com/questions/13034496/using-global-variables-between-files
+	 para_class DONE
+	 user_input_class ...
+	
 
 # I/O
 

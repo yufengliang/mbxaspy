@@ -5,13 +5,14 @@ from __future__ import print_function
 
 from struct import pack, unpack
 import re
-
+import sys
+import inspect
 
 from utils import *
 
 
-quote = {'"', "'"}
-delimiter = {';', ',', ' ', '\t', '\n'}
+_quote = {'"', "'"}
+_delimiter = {';', ',', ' ', '\t', '\n'}
 
 def input_from_binary(fhandle, data_type, ndata, offset):
     """ input data from a binary file 
@@ -77,7 +78,7 @@ def input_arguments(lines):
 
     var_dict = {}
     if lines[-1] != '\n': lines += '\n'
-    lines = re.sub('#.*\n', '#', lines) # convert all comments into delimiters
+    lines = re.sub('#.*\n', '#', lines) # convert all comments into _delimiters
     for block in lines.split('#'):
         name = None
         # look for assignment
@@ -85,21 +86,21 @@ def input_arguments(lines):
             value = None
             new_name = item
             # if value is string
-            for s in quote:
+            for s in _quote:
                 item_str = item.split(s)
                 if len(item_str) > 2: # found quotation marks
-                    value = item_str[1] # the string in the first quote
+                    value = item_str[1] # the string in the first _quote
                     new_name = item_str[-1].strip() # last term
             # value not a string
             if value is None:
                 value = item
-                for s in delimiter:
+                for s in _delimiter:
                     try:
                         value = list(filter(None, value.split(s)))[0] # always take the first meaningful string
                     except IndexError:
                         value = ''
                         break
-                for s in delimiter:
+                for s in _delimiter:
                     try:
                         new_name = list(filter(None, new_name.split(s)))[-1] # always take the last meaningful string
                     except IndexError:
@@ -111,12 +112,24 @@ def input_arguments(lines):
     return var_dict
 
 
-__all__ = ['input_from_binary', 'input_arguments']
+def convert_val(val_str, val):
+    """ Given a string, convert into the correct data type """
+    import __builtin__
+    if 'false' in val_str.lower(): val_str = '' # false should still be false
+    val_type = getattr(__builtin__, val.__name__)
+    try:
+        return val_type(val_str)
+    except ValueError:
+        # Can it be a float ?
+        return val_type(float(val_str))
+
+
+# export function only
+__all__ = [s for s in dir() if not s.startswith('_') and inspect.isfunction(getattr(sys.modules[__name__],s))]
 
 
 if __name__ == '__main__':
     print(__file__ + ": the i/o module for mbxaspy")
     # debug
-    with open('test/test_io/sample.in', 'r') as f:
-        var_dict = input_arguments(f.read())
+    var_dict = input_arguments(sys.stdin.read())
     print(var_dict)

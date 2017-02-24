@@ -5,8 +5,8 @@ from __future__ import print_function
 import sys
 import os
 
-from defs import *
 from utils import *
+from defs import *
 
 __all__ = ['sys', 'os']
 
