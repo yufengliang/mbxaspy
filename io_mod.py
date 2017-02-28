@@ -8,11 +8,14 @@ import re
 import sys
 import inspect
 
+
+from constants import *
 from utils import *
 
 
 _quote = {'"', "'"}
 _delimiter = {';', ',', ' ', '\t', '\n'}
+
 
 def input_from_binary(fhandle, data_type, ndata, offset):
     """ input data from a binary file 
@@ -27,9 +30,6 @@ def input_from_binary(fhandle, data_type, ndata, offset):
     Returns:
         a list of data of specified data_type
     """
-
-    # acceptable data: name, size (bytes), and format in pack/unpack
-    data_set = {'integer' : (4, 'i'), 'float' : (4, 'f') , 'double' : (8, 'd'), 'complex' : (16, 'dd')}
 
     if not data_type in data_set:
         raise TypeError(' data_type must be in ' + str(set(data_set)) + '.' )
@@ -53,7 +53,7 @@ def input_from_binary(fhandle, data_type, ndata, offset):
     return reslist
 
 
-def input_arguments(lines):
+def input_arguments(lines, lower = False):
     """ input arguments from a user-defined file
 
     Given lines = 
@@ -77,6 +77,7 @@ def input_arguments(lines):
     """
 
     var_dict = {}
+    if len(lines) == 0: return var_dict
     if lines[-1] != '\n': lines += '\n'
     lines = re.sub('#.*\n', '#', lines) # convert all comments into _delimiters
     for block in lines.split('#'):
@@ -107,6 +108,7 @@ def input_arguments(lines):
                         new_name = ''
                         break
             if is_valid_variable_name(name) and value is not None:
+                if lower: name = name.lower()
                 var_dict.update({name : value})
             name = new_name
     return var_dict
