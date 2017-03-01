@@ -21,6 +21,8 @@ if ismpi():
         raise ImportError(' Please install or load mpi4py first. Running with one processor. ')
 else:
     print(' Not an MPI environment. Running the serial version. ')
+# define pools
+para.pool = pool_class(para)
 __all__ += ['para']
 para.print()
 
