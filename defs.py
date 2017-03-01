@@ -21,7 +21,19 @@ class pool_class(object):
     """
 
     def set_pool(self, nproc_per_pool = 1):
-        """ set up pools so that each pool has at least nproc_per_pool procs """
+        """ 
+        set up pools so that each pool has at least nproc_per_pool procs 
+        
+        examples:
+        para.size       = 10    # total number of processors
+        nproc_per_pool  = 3     # least number of processors per pool
+        10 / 3 = 3 pools
+
+        pool    size    proc
+           0       4    0, 3, 6, 9   
+           1       3    1, 4, 7
+           2       3    2, 5, 8
+        """
         para = self.para
         if nproc_per_pool > 0:
             self.npp    = nproc_per_pool
@@ -36,11 +48,30 @@ class pool_class(object):
             self.size   = self.npp + (self.i < para.size % self.npp)
     
     def set_sklist(self, nspin = 1, nk = 1):
-        pass
+        """ 
+        set up a list of spin and kpoint tuples to be processed on this proc
+
+        example:
+        nspin = 2, nk = 5
+        self.n  =   3   # number of pools
+        2 * 5 / 3 = 3   # each pool at least deal with 3 tuples
+
+        pool    tuple
+           0    (0, 0), (0, 3), (1, 1), (1, 4)
+           1    (0, 1), (0, 4), (1, 2)
+           2    (0, 2), (1, 0), (1, 3)
+        """
+        self.sklist = []
+        for s in range(nspin):
+            for k in range(nk):
+                if (s * nk + k) % self.n == self.i:
+                    self.sklist.append((s, k))
+
         
     def __init__(self, para):
         self.para = para
         self.set_pool(nproc_per_pool = 1)
+
         
 class para_class(object):
     """ para class: wrap up user-defined mpi variables for parallelization """
