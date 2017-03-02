@@ -130,8 +130,8 @@ class user_input_class(object):
         if isanaconda():
             try:
                 userin = open(sys.arg[1], 'r')
-            except IOError, e:
-                para.print(" Can't find user-defined input " + sys.arg[1] + " Halt. ", flush = True)
+            except IOError:
+                para.print(" Can't open user-defined input " + sys.arg[1] + " Halt. ", flush = True)
                 para.stop()
         else: userin = sys.stdin
         lines = userin.read()
