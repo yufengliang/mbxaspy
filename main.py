@@ -21,3 +21,11 @@ iscf.input(user_input = user_input,
            path = user_input.ipath, 
            mol_name = user_input.mol_name_i,
            is_initial = True)
+
+# import final-state scf calculations
+pass
+
+# check consistency between i and f scf
+pass
+
+

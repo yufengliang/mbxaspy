@@ -129,7 +129,7 @@ class user_input_class(object):
         """ input from stdin or userin"""
         if isanaconda():
             try:
-                userin = open(sys.arg[1], 'r')
+                userin = open(sys.argv[1], 'r')
             except IOError:
                 para.print(" Can't open user-defined input " + sys.arg[1] + " Halt. ", flush = True)
                 para.stop()
@@ -212,11 +212,14 @@ class scf_class(object):
     def input_shirley(self, user_input, path, mol_name, is_initial):
         """ input from shirley xas """
         para = self.para
+
         # construct file names
         xas_prefix = mol_name + '.xas'
         xas_data_prefix = xas_prefix + '.' + str(user_input.xas_arg)
         ftype = ['info', 'eigval', 'eigvec', 'proj']
-        if is_initial: ftype += ['xmat']
+
+        if is_initial: ftype += ['xmat'] # need pos matrix element for the initial state
+        
         for f in ftype:
             fname = os.path.abspath(path + '/' + xas_data_prefix + '.' + f)
             if f != 'info': binary = '' # Does it matter if not use b ?
@@ -230,7 +233,7 @@ class scf_class(object):
                 lines = fh.read()
                 var_input = input_arguments(lines, lower = True)
                 # para.print(var_input) # debug
-                for var in ['nbnd', 'nk', 'nelec', 'ncp', 'nspin']:
+                for var in ['nbnd', 'nk', 'nbasis', 'nelec', 'ncp', 'nspin']:
                     if var in var_input:
                         try:
                         # convert var into correct data type as implied in __init__ and set attributes
@@ -240,9 +243,14 @@ class scf_class(object):
                     else:
                         para.print(' Variable "' + var + '" missed in ' + fname, flush = True)
                         para.stop()
+
                 # initialize k-points
                 if user_input.gamma_only: self.nk = 1
                 self.kpt = kpoints_class(nk = self.nk)
+
+                # get spin and k-point index processed by this pool
+                para.pool.set_sklist(nspin = self.nspin, nk = self.nk)
+
                 # initialize obf
                 self.obf = optimal_basis_set_class(nbnd = self.nbnd) # there're more: nbasis, ...
 
