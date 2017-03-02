@@ -14,19 +14,17 @@ def is_valid_variable_name(name):
     except (SyntaxError, ValueError, TypeError) as err:
         return False
 
-
 def ispython3x():
-    if sys.version_info.major == 3:
-        return True
-    else:
-        return False
+    if sys.version_info.major == 3: return True
+    else: return False
 
+def isanaconda():
+    if 'anaconda' in sys.version.lower(): return True
+    else: return False
 
 def ismpi():
     mpi_var = {'SLURM_JOB_ID', 'PBS_O_WORKDIR'}
-    if set(mpi_var) & set(os.environ):
-        return True
-    else:
-        return False
+    if set(mpi_var) & set(os.environ): return True
+    else: return False
 
 

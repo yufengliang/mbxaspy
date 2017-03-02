@@ -91,10 +91,12 @@ class para_class(object):
         # initialize pool for k-points
         self.pool = pool_class(self)
 
-    def print(self, msg = '', rank = 0):
+    def print(self, msg = '', rank = 0, flush = False):
         """ print at given rank """
         if self.rank == rank:
             print(msg) # recursively ?
+        if flush:
+            sys.stdout.flush()
 
 
     def stop(self):
@@ -124,8 +126,15 @@ class user_input_class(object):
         self.nproc_per_pool = 1
 
     def read(self):
-        """ input from stdin """
-        lines = sys.stdin.read()
+        """ input from stdin or userin"""
+        if isanaconda():
+            try:
+                userin = open(sys.arg[1], 'r')
+            except IOError, e:
+                para.print(" Can't find user-defined input " + sys.arg[1] + " Halt. ", flush = True)
+                para.stop()
+        else: userin = sys.stdin
+        lines = userin.read()
         var_input = input_arguments(lines)
         for var in set(vars(self)) & set(var_input): # This can be improved
             try:
@@ -135,6 +144,7 @@ class user_input_class(object):
                 pass
         self.ipath = os.path.abspath(self.ipath)
         self.fpath = os.path.abspath(self.fpath)
+        userin.close()
 
 class kpoints_class(object):
     """ store information related to kpoints """
@@ -214,7 +224,7 @@ class scf_class(object):
             try:
                 fh = open(fname, 'r' + binary)
             except:
-                para.print(" Can't open " + fname + '. Check if shirley_xas finishes properly. Halt. ')
+                para.print(" Can't open " + fname + '. Check if shirley_xas finishes properly. Halt. ', flush = True)
                 para.stop()
             if f == 'info':
                 lines = fh.read()
@@ -228,7 +238,7 @@ class scf_class(object):
                         except:
                             pass
                     else:
-                        para.print(' Variable "' + var + '" missed in ' + fname)
+                        para.print(' Variable "' + var + '" missed in ' + fname, flush = True)
                         para.stop()
                 # initialize k-points
                 if user_input.gamma_only: self.nk = 1

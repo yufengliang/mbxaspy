@@ -18,7 +18,7 @@ if ismpi():
         __all__ += ['MPI']
         para = para_class(MPI)
     except ImportError:
-        raise ImportError(' Please install or load mpi4py first. Running with one processor. ')
+        raise ImportError(' Please install or load mpi4py first. MPI init fails. Halt. ')
 else:
     print(' Not an MPI environment. Running the serial version. ')
 # define pools
@@ -29,7 +29,11 @@ para.print()
 # python version
 para.print(' Running mbxaspy with: \n Python' + sys.version)
 para.print()
-
+if 'anaconda' in sys.version.lower():
+    para.print(' Detect Python Anaconda. Standard input is blocked. Read user input from the 1st arg. ')
+    if len(sys.argv) < 2:
+        para.print(' Please enter the file name of user input as the 1st arg.', flush = True)
+        para.stop()
 
 # numpy / scipy version: define sp and la
 try:
