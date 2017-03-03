@@ -56,12 +56,12 @@ para.print()
 user_input = user_input_class()
 __all__ += ['user_input']
 
+# Pass attributes
+for obj in ['scf_class', 'optimal_basis_set_class', 'user_input_class']:
+    for attr in ['sp', 'para']:
+        setattr(eval(obj), attr, eval(attr))
 
 # initial- and final-state scf
-scf_class.sp                    = sp    # There could be a better way of doing this
-scf_class.para                  = para
-optimal_basis_set_class.sp      = sp
-optimal_basis_set_class.para    = para
 iscf = scf_class()
 fscf = scf_class()
 __all__ += ['iscf', 'fscf']

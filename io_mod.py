@@ -39,6 +39,7 @@ def input_from_binary(fhandle, data_type, ndata, offset):
 
     # seek and read
     fhandle.seek(offset * data_set[data_type][0])
+    #data = fhandle.read(ndata * data_set[data_type][0])
     data = fhandle.read(ndata * data_set[data_type][0])
 
     # convert
@@ -116,9 +117,10 @@ def input_arguments(lines, lower = False):
 
 def convert_val(val_str, val):
     """ Given a string, convert into the correct data type """
-    import __builtin__
-    if 'false' in val_str.lower(): val_str = '' # false should still be false
-    val_type = getattr(__builtin__, val.__name__)
+    if val is bool:
+        if 'true' in val_str.lower(): val_str = 'true' 
+        else: val_str = '' # otherwise set to false
+    val_type = val
     try:
         return val_type(val_str)
     except ValueError:

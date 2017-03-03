@@ -56,17 +56,20 @@ class pool_class(object):
         self.n  =   3   # number of pools
         2 * 5 / 3 = 3   # each pool at least deal with 3 tuples
 
-        pool    tuple
-           0    (0, 0), (0, 3), (1, 1), (1, 4)
-           1    (0, 1), (0, 4), (1, 2)
-           2    (0, 2), (1, 0), (1, 3)
+        pool    tuple                           offset
+           0    (0, 0), (0, 3), (1, 1), (1, 4)  0, 3, 6, 9
+           1    (0, 1), (0, 4), (1, 2)          1, 4, 7
+           2    (0, 2), (1, 0), (1, 3)          2, 5, 8
         """
-        self.sklist = []
+        self.sk_list = []
+        self.sk_offset = []
         for s in range(nspin):
             for k in range(nk):
-                if (s * nk + k) % self.n == self.i:
-                    self.sklist.append((s, k))
-
+                offset = s * nk + k
+                if offset % self.n == self.i:
+                    self.sk_list.append((s, k))
+                    self.sk_offset.append(offset)
+        self.nsk = len(self.sk_list)
         
     def __init__(self, para):
         self.para = para
@@ -127,16 +130,20 @@ class user_input_class(object):
 
     def read(self):
         """ input from stdin or userin"""
+        para = self.para
         if isanaconda():
             try:
                 userin = open(sys.argv[1], 'r')
+                para.print(' Reading user input from ' + sys.argv[1] + ' ...')
             except IOError:
-                para.print(" Can't open user-defined input " + sys.arg[1] + " Halt. ", flush = True)
+                para.print(" Can't open user-defined input " + sys.argv[1] + " Halt. ", flush = True)
                 para.stop()
         else: userin = sys.stdin
         lines = userin.read()
         var_input = input_arguments(lines)
+        # para.print(var_input) # debug
         for var in set(vars(self)) & set(var_input): # This can be improved
+            setattr(self, var, convert_val(var_input[var], type(getattr(self, var))))
             try:
                 # convert var into correct data type as implied in __init__ and set attributes
                 setattr(self, var, convert_val(var_input[var], type(getattr(self, var))))
@@ -144,6 +151,7 @@ class user_input_class(object):
                 pass
         self.ipath = os.path.abspath(self.ipath)
         self.fpath = os.path.abspath(self.fpath)
+        # para.print(vars(self)) # debug
         userin.close()
 
 class kpoints_class(object):
@@ -175,6 +183,7 @@ class optimal_basis_set_class(object):
     # Have you considered k-points and spins ?!
     def input_eigval(self, fh):
         sp = self.sp
+        para = self.para
         try:
             self.eigval = input_from_binary(fh, 'double', self.nbnd, 0)
         except struct.error:
@@ -222,7 +231,7 @@ class scf_class(object):
         
         for f in ftype:
             fname = os.path.abspath(path + '/' + xas_data_prefix + '.' + f)
-            if f != 'info': binary = '' # Does it matter if not use b ?
+            if f == 'info': binary = '' # Need this because python3 will try to decode the binary file erroneously
             else: binary = 'b'
             try:
                 fh = open(fname, 'r' + binary)
@@ -232,19 +241,22 @@ class scf_class(object):
             if f == 'info':
                 lines = fh.read()
                 var_input = input_arguments(lines, lower = True)
-                # para.print(var_input) # debug
-                for var in ['nbnd', 'nk', 'nbasis', 'nelec', 'ncp', 'nspin']:
+                para.print(var_input) # debug
+                for var in ['nbnd', 'nk', 'nelec', 'ncp', 'nspin']:
                     if var in var_input:
                         try:
                         # convert var into correct data type as implied in __init__ and set attributes
                             setattr(self, var, convert_val(var_input[var], type(getattr(self, var))))
+                            para.print(var) # debug
+                            para.print(convert_val(var_input[var], type(getattr(self, var)))) # debug
                         except:
-                            pass
+                            para.print(' Convert ' + var + ' = ' + var_input[var] + ' failed.')
                     else:
                         para.print(' Variable "' + var + '" missed in ' + fname, flush = True)
                         para.stop()
 
                 # initialize k-points
+                print(self.nspin, self.nk, user_input.gamma_only) # debug
                 if user_input.gamma_only: self.nk = 1
                 self.kpt = kpoints_class(nk = self.nk)
 
@@ -258,7 +270,7 @@ class scf_class(object):
                 self.obf.input_eigval(fh)
             if f == 'eigvec':
                         pass
-                        
+            fh.close()           
         
     def input(self, user_input, path, mol_name, is_initial):
         """ input from one shirley run """
