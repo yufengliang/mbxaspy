@@ -35,18 +35,49 @@ class pool_class(object):
            2       3    2, 5, 8
         """
         para = self.para
+        comm = para.comm
         if nproc_per_pool > 0:
-            self.npp    = nproc_per_pool
+            self.npp    = int(nproc_per_pool)
             if para.size < self.npp:
                 para.print(' Insufficient number of procs for nproc_per_pool = ' + str(self.npp))
                 para.print(' Reduce nproc_per_pool to ' + str(para.size))
                 self.npp = para.size
-            self.n      = para.size / self.npp  # number of pools
-            self.i      = para.rank % self.n    # the index of the pool
-            self.rank   = para.rank / self.n    # rank within the pool
-            # actual pool size (npp plus residue)
-            self.size   = self.npp + (self.i < para.size % self.npp)
+            self.n      = int(para.size / self.npp)  # number of pools
+            self.i      = int(para.rank % self.n)    # the index of the pool
+            if comm:
+                # set up pool communicators
+                self.comm     = comm.Split(para.rank % self.n, para.rank) # intrapool comm
+                self.rank     = self.comm.Get_rank()      # rank within the pool
+                self.roots    = range(self.n)             # a list of all the pool roots
+                roots_group   = para.MPI.Group.Incl(comm.Get_group(), self.roots)
+                self.rootcomm = comm.Create_group(roots_group) # communication among the roots of all pools
+                # actual pool size (npp plus residue)
+                self.size     = self.comm.Get_size()
+            else:
+                self.comm   = None
+                self.roots  = [0]
+                self.rank   = 0
+                self.size   = 1
     
+    def info(self):
+        """ Collect pool information and print """
+        para = self.para
+        comm = para.comm
+        if not self.pool_list:
+            if comm and self.comm:
+                mypool = self.comm.gather(para.rank, root = 0)
+                if self.rootcomm != para.MPI.COMM_NULL:
+                    self.pool_list = self.rootcomm.gather(mypool, root = 0)
+                self.pool_list = comm.bcast(self.pool_list, root = 0)
+            else:
+                mypool = [0]
+                self.pool_list = [mypool]
+        para.print(' Setting up pools ...')
+        para.print(' {0:<4}{1:>6}{2:<6}'.format('pool', 'size', '  proc'))
+        for i in range(self.n):
+            para.print(' {0:>4}{1:>6}{2:<6}'.format(i, len(self.pool_list[i]), '  ' + str(self.pool_list[i]).strip('[]')))
+        para.print()
+        
     def set_sklist(self, nspin = 1, nk = 1):
         """ 
         set up a list of spin and kpoint tuples to be processed on this proc
@@ -61,6 +92,8 @@ class pool_class(object):
            1    (0, 1), (0, 4), (1, 2)          1, 4, 7
            2    (0, 2), (1, 0), (1, 3)          2, 5, 8
         """
+        self.nspin = nspin
+        self.nk = nk
         self.sk_list = []
         self.sk_offset = []
         for s in range(nspin):
@@ -70,9 +103,19 @@ class pool_class(object):
                     self.sk_list.append((s, k))
                     self.sk_offset.append(offset)
         self.nsk = len(self.sk_list)
+
+    def sk_info(self):
+        """ collect and print out the spin-kpoint tuples on each pool """
+
+        para = self.para
+        if para.comm:
+            self.sk_list_all = para.comm.gather(self.sk_list, root = 0)
+        else:
+            self.sk_list_all = self.sk_list
         
-    def __init__(self, para):
+    def __init__(self, para = None):
         self.para = para
+        self.pool_list = []
         self.set_pool(nproc_per_pool = 1)
 
         
@@ -82,11 +125,13 @@ class para_class(object):
 
     def __init__(self, MPI = None):
         if MPI is not None:
+            self.MPI  = MPI
             self.comm = MPI.COMM_WORLD
             self.size = self.comm.Get_size()
             self.rank = self.comm.Get_rank()
 
         else:
+            self.MPI  = None
             self.comm = None
             self.size = 1
             self.rank = 0
@@ -151,6 +196,8 @@ class user_input_class(object):
                 pass
         self.ipath = os.path.abspath(self.ipath)
         self.fpath = os.path.abspath(self.fpath)
+
+        if not para.comm: self.nproc_per_pool = 1
         # para.print(vars(self)) # debug
         userin.close()
 
@@ -241,14 +288,14 @@ class scf_class(object):
             if f == 'info':
                 lines = fh.read()
                 var_input = input_arguments(lines, lower = True)
-                para.print(var_input) # debug
+                #para.print(var_input) # debug
                 for var in ['nbnd', 'nk', 'nelec', 'ncp', 'nspin']:
                     if var in var_input:
                         try:
                         # convert var into correct data type as implied in __init__ and set attributes
                             setattr(self, var, convert_val(var_input[var], type(getattr(self, var))))
-                            para.print(var) # debug
-                            para.print(convert_val(var_input[var], type(getattr(self, var)))) # debug
+                            #para.print(var) # debug
+                            #para.print(convert_val(var_input[var], type(getattr(self, var)))) # debug
                         except:
                             para.print(' Convert ' + var + ' = ' + var_input[var] + ' failed.')
                     else:
@@ -256,9 +303,26 @@ class scf_class(object):
                         para.stop()
 
                 # initialize k-points
-                print(self.nspin, self.nk, user_input.gamma_only) # debug
+                # print(self.nspin, self.nk, user_input.gamma_only) # debug
                 if user_input.gamma_only: self.nk = 1
-                self.kpt = kpoints_class(nk = self.nk)
+                self.kpt = kpoints_class(nk = self.nk) # do we need this ?
+
+                # Check k-grid consistency between the initial and final state
+                if not is_initial:
+                    if para.pool.nk != self.nk: # if the initial-state # of kpoints is not the same with the final-state one
+                        para.print(' Inconsistent k-point number nk_i = ' + str(para.pool.nk) + ' v.s. nk_f = ' + str(self.nk) + ' Halt.')
+                        para.stop()
+
+                if is_initial:
+                    # set up pools
+                    if self.nk < para.size / user_input.nproc_per_pool:
+                        para.print(' Too few k-points (' + str(self.nk) + ') for ' + str(int(para.size / user_input.nproc_per_pool)) + ' pools.')
+                        para.print(' Increat nproc_per_pool to ' + str(int(para.size / self.nk)))
+                        para.print()
+                        user_input.nproc_per_pool = int(para.size / self.nk)
+
+                    para.pool.set_pool(user_input.nproc_per_pool)
+                    para.pool.info()
 
                 # get spin and k-point index processed by this pool
                 para.pool.set_sklist(nspin = self.nspin, nk = self.nk)
@@ -276,7 +340,7 @@ class scf_class(object):
         """ input from one shirley run """
         para = self.para
         if user_input.scf_type == 'shirley_xas':
-            para.print(' Import wavefunctions and energies from shirley_xas calculation .. ')
+            para.print(' Import wavefunctions and energies from shirley_xas calculation ...\n ')
             self.input_shirley(user_input, path, mol_name, is_initial)
         else:
             para.print(' Unsupported scf input: ' + scf_type + ' Halt. ')
