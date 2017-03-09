@@ -13,11 +13,16 @@ from init import *
 user_input.read()
 
 # import initial-state scf calculations
-para.print(' Reading initial-state scf from: \n ' + user_input.ipath + '\n')
+para.print(' Checking initial-state scf from: \n ' + user_input.path_i + '\n')
 iscf.input(user_input = user_input,
-           path = user_input.ipath, 
-           mol_name = user_input.mol_name_i,
-           is_initial = True)
+           is_initial = True,
+           isk = -1)
+
+# import final-state scf calculations
+para.print(' Checking final-state scf from: \n ' + user_input.path_f + '\n')
+iscf.input(user_input = user_input,
+           is_initial = False,
+           isk = -1)
 
 # import final-state scf calculations
 pass

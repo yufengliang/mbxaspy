@@ -118,7 +118,16 @@ class pool_class(object):
         self.pool_list = []
         self.set_pool(nproc_per_pool = 1)
 
-        
+    def isroot(self):
+        if self.para.rank in self.roots: return True
+        else: return False
+
+    def print(self, msg, flush = False):
+        """ print at pool root """
+        if self.isroot():
+            print(msg) 
+            if flush: sys.stdout.flush()
+
 class para_class(object):
     """ para class: wrap up user-defined mpi variables for parallelization """
 
@@ -162,8 +171,8 @@ class user_input_class(object):
 
     def __init__(self):
         # user-defined variables and default values
-        self.ipath      = '.'
-        self.fpath      = '.'
+        self.path_i     = '.'
+        self.path_f     = '.'
         self.nbnd       = 0
         self.nelec      = 0
         self.gamma_only = False
@@ -194,8 +203,8 @@ class user_input_class(object):
                 setattr(self, var, convert_val(var_input[var], type(getattr(self, var))))
             except:
                 pass
-        self.ipath = os.path.abspath(self.ipath)
-        self.fpath = os.path.abspath(self.fpath)
+        self.path_i = os.path.abspath(self.path_i)
+        self.path_f = os.path.abspath(self.path_f)
 
         if not para.comm: self.nproc_per_pool = 1
         # para.print(vars(self)) # debug
@@ -265,16 +274,33 @@ class scf_class(object):
         self.xmat   = sp.array([])         # single-particle matrix elements
 
 
-    def input_shirley(self, user_input, path, mol_name, is_initial):
-        """ input from shirley xas """
+    def input_shirley(self, user_input, is_initial, isk = 0):
+        """ 
+        input from shirley xas
+
+        Arguments:
+        is_initial: is this an initial-state scf
+        isk: the index of the spin-k-point block to be input
+             isk == 0 indicates this is the first time reading the data and 
+             we need to extract the basic scf information from the *.info file.
+        """
         para = self.para
+
+        # stripe the i/f postfix
+        if is_initial: postfix = '_i'
+        else: postfix = '_f'
+        
+        path = getattr(user_input, 'path' + postfix)
+        mol_name = getattr(user_input, 'mol_name' + postfix)
 
         # construct file names
         xas_prefix = mol_name + '.xas'
         xas_data_prefix = xas_prefix + '.' + str(user_input.xas_arg)
-        ftype = ['info', 'eigval', 'eigvec', 'proj']
-
-        if is_initial: ftype += ['xmat'] # need pos matrix element for the initial state
+        ftype = []
+        if isk < 0: ftype.append('info')
+        if isk >= 0: 
+            ftype += ['eigval', 'eigvec', 'proj']
+            if is_initial: ftype += ['xmat'] # need pos matrix element for the initial state
         
         for f in ftype:
             fname = os.path.abspath(path + '/' + xas_data_prefix + '.' + f)
@@ -312,6 +338,7 @@ class scf_class(object):
                     if para.pool.nk != self.nk: # if the initial-state # of kpoints is not the same with the final-state one
                         para.print(' Inconsistent k-point number nk_i = ' + str(para.pool.nk) + ' v.s. nk_f = ' + str(self.nk) + ' Halt.')
                         para.stop()
+                    para.print(' Consistency check ok between the initial and final scf. ')
 
                 if is_initial:
                     # set up pools
@@ -326,6 +353,7 @@ class scf_class(object):
 
                 # get spin and k-point index processed by this pool
                 para.pool.set_sklist(nspin = self.nspin, nk = self.nk)
+                # para.pool.print(str(para.pool.sk_list) + ' ' + str(para.pool.sk_offset)) # debug
 
                 # initialize obf
                 self.obf = optimal_basis_set_class(nbnd = self.nbnd) # there're more: nbasis, ...
@@ -336,12 +364,12 @@ class scf_class(object):
                         pass
             fh.close()           
         
-    def input(self, user_input, path, mol_name, is_initial):
+    def input(self, user_input, is_initial, isk):
         """ input from one shirley run """
         para = self.para
         if user_input.scf_type == 'shirley_xas':
-            para.print(' Import wavefunctions and energies from shirley_xas calculation ...\n ')
-            self.input_shirley(user_input, path, mol_name, is_initial)
+            if isk >= 0: para.print(' Import wavefunctions and energies from shirley_xas calculation ...\n ')
+            self.input_shirley(user_input, is_initial, isk)
         else:
             para.print(' Unsupported scf input: ' + scf_type + ' Halt. ')
             para.stop()
