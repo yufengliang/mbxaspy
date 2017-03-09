@@ -20,6 +20,11 @@ class pool_class(object):
 
     """
 
+    def __init__(self, para = None):
+        self.para = para
+        self.pool_list = []
+        self.up = False
+
     def set_pool(self, nproc_per_pool = 1):
         """ 
         set up pools so that each pool has at least nproc_per_pool procs 
@@ -58,6 +63,7 @@ class pool_class(object):
                 self.roots  = [0]
                 self.rank   = 0
                 self.size   = 1
+            self.up = True
     
     def info(self):
         """ Collect pool information and print """
@@ -113,11 +119,6 @@ class pool_class(object):
         else:
             self.sk_list_all = self.sk_list
         
-    def __init__(self, para = None):
-        self.para = para
-        self.pool_list = []
-        self.set_pool(nproc_per_pool = 1)
-
     def isroot(self):
         if self.para.rank in self.roots: return True
         else: return False
@@ -338,9 +339,9 @@ class scf_class(object):
                     if para.pool.nk != self.nk: # if the initial-state # of kpoints is not the same with the final-state one
                         para.print(' Inconsistent k-point number nk_i = ' + str(para.pool.nk) + ' v.s. nk_f = ' + str(self.nk) + ' Halt.')
                         para.stop()
-                    para.print(' Consistency check ok between the initial and final scf. ')
+                    para.print(' Consistency check OK between the initial and final scf. ')
 
-                if is_initial:
+                if is_initial and not para.pool.up:
                     # set up pools
                     if self.nk < para.size / user_input.nproc_per_pool:
                         para.print(' Too few k-points (' + str(self.nk) + ') for ' + str(int(para.size / user_input.nproc_per_pool)) + ' pools.')

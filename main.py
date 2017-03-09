@@ -20,7 +20,7 @@ iscf.input(user_input = user_input,
 
 # import final-state scf calculations
 para.print(' Checking final-state scf from: \n ' + user_input.path_f + '\n')
-iscf.input(user_input = user_input,
+fscf.input(user_input = user_input,
            is_initial = False,
            isk = -1)
 
