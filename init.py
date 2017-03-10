@@ -7,6 +7,7 @@ import os
 
 from utils import *
 from defs import *
+from para_defs import *
 
 __all__ = ['sys', 'os']
 
