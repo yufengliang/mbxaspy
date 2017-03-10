@@ -84,7 +84,7 @@ class pool_class(object):
             para.print(' {0:>4}{1:>6}{2:<6}'.format(i, len(self.pool_list[i]), '  ' + str(self.pool_list[i]).strip('[]')))
         para.print()
         
-    def set_sklist(self, nspin = 1, nk = 1):
+    def set_sk_list(self, nspin = 1, nk = 1):
         """ 
         set up a list of spin and kpoint tuples to be processed on this proc
 
@@ -189,7 +189,7 @@ class user_input_class(object):
         if isanaconda():
             try:
                 userin = open(sys.argv[1], 'r')
-                para.print(' Reading user input from ' + sys.argv[1] + ' ...')
+                para.print(' Reading user input from ' + sys.argv[1] + ' ...\n')
             except IOError:
                 para.print(" Can't open user-defined input " + sys.argv[1] + " Halt. ", flush = True)
                 para.stop()
@@ -236,20 +236,37 @@ class optimal_basis_set_class(object):
         self.eigval     = sp.array([])    # eigenvalues (band energies)
         self.eigvec     = sp.array([])    # eigenvectors (wavefunctions)
 
-
-    # Have you considered k-points and spins ?!
-    def input_eigval(self, fh):
+    def input_eigval(self, fh, sk_offset):
         sp = self.sp
         para = self.para
+        pool = para.pool
         try:
-            self.eigval = input_from_binary(fh, 'double', self.nbnd, 0)
+            self.eigval = input_from_binary(fh, 'double', self.nbnd, sk_offset * self.nbnd)
         except struct.error:
             pass
+        self.para.print('  ' + list2str_1d(self.eigval)) 
         self.eigval = sp.array(self.eigval)
-        self.para.print(self.eigval) # debug
 
-    def input_eigvec(self, fh):
-        pass
+    def input_eigvec(self, fh, sk_offset):
+        sp = self.sp
+        para = self.para
+        pool = para.pool
+        size = self.nbnd * self.nbasis
+        try:
+            """
+            eigvec is given as a 1D array (transpose(eigvec) in column-major order)
+            [ <B_1|1k>, <B_1|2k>, <B_2|1k>, <B_2|2k>]
+
+            which corresponds to such a matrix:
+            <B_1|1k>  <B_1|2k>
+            <B_2|1k>  <B_2|2k>
+            """
+            # Note that the input is the transpose of < B_i | nk >
+            self.eigvec = input_from_binary(fh, 'complex', size, sk_offset * size)
+        except struct.error:
+            pass
+        # Note that reshape works in row-major order
+        self.eigvec = sp.array(self.eigvec).reshape(self.nbasis, self.nbnd)
         
 
 class paw_class(object):
@@ -272,6 +289,7 @@ class scf_class(object):
         self.nelec  = 0                         # number of electrons
         self.ncp    = 1                         # number of core levels
         self.nspin  = 1                         # number of spins
+        self.nbasis = 1                         # number of basis
         self.xmat   = sp.array([])         # single-particle matrix elements
 
 
@@ -316,7 +334,7 @@ class scf_class(object):
                 lines = fh.read()
                 var_input = input_arguments(lines, lower = True)
                 #para.print(var_input) # debug
-                for var in ['nbnd', 'nk', 'nelec', 'ncp', 'nspin']:
+                for var in ['nbnd', 'nk', 'nelec', 'ncp', 'nspin', 'nbasis']:
                     if var in var_input:
                         try:
                         # convert var into correct data type as implied in __init__ and set attributes
@@ -329,6 +347,15 @@ class scf_class(object):
                         para.print(' Variable "' + var + '" missed in ' + fname, flush = True)
                         para.stop()
 
+                # print out basis information
+                info_str = ('  number of bands (nbnd)                    = {0}\n'\
+                         +  '  number of spins (nspin)                   = {1}\n'\
+                         +  '  number of k-points (nk)                   = {2}\n'\
+                         +  '  number of electrons (nelec)               = {3} \n'\
+                         +  '  number of optimal-basis function (nbasis) = {4} \n'\
+                           ).format(self.nbnd, self.nspin, self.nk, self.nelec, self.nbasis)
+                para.print(info_str)
+
                 # initialize k-points
                 # print(self.nspin, self.nk, user_input.gamma_only) # debug
                 if user_input.gamma_only: self.nk = 1
@@ -339,7 +366,7 @@ class scf_class(object):
                     if para.pool.nk != self.nk: # if the initial-state # of kpoints is not the same with the final-state one
                         para.print(' Inconsistent k-point number nk_i = ' + str(para.pool.nk) + ' v.s. nk_f = ' + str(self.nk) + ' Halt.')
                         para.stop()
-                    para.print(' Consistency check OK between the initial and final scf. ')
+                    para.print(' Consistency check OK between the initial and final scf. \n')
 
                 if is_initial and not para.pool.up:
                     # set up pools
@@ -353,23 +380,29 @@ class scf_class(object):
                     para.pool.info()
 
                 # get spin and k-point index processed by this pool
-                para.pool.set_sklist(nspin = self.nspin, nk = self.nk)
+                para.pool.set_sk_list(nspin = self.nspin, nk = self.nk)
                 # para.pool.print(str(para.pool.sk_list) + ' ' + str(para.pool.sk_offset)) # debug
 
                 # initialize obf
                 self.obf = optimal_basis_set_class(nbnd = self.nbnd) # there're more: nbasis, ...
 
             if f == 'eigval':
-                self.obf.input_eigval(fh)
+                para.print('  Band energies: ')
+                self.obf.input_eigval(fh, para.pool.sk_offset[isk])
+                para.print()
+
             if f == 'eigvec':
-                        pass
+                para.print('  Obf Wavefunctions : ')
+                self.obf.input_eigvec(fh, para.pool.sk_offset[isk])
+                para.print()
+
             fh.close()           
         
     def input(self, user_input, is_initial, isk):
         """ input from one shirley run """
         para = self.para
         if user_input.scf_type == 'shirley_xas':
-            if isk >= 0: para.print(' Import wavefunctions and energies from shirley_xas calculation ...\n ')
+            if isk < 0: para.print(' Wavefunctions and energies will be imported from shirley_xas calculation. \n ')
             self.input_shirley(user_input, is_initial, isk)
         else:
             para.print(' Unsupported scf input: ' + scf_type + ' Halt. ')

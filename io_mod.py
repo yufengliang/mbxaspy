@@ -128,6 +128,28 @@ def convert_val(val_str, val):
         return val_type(float(val_str))
 
 
+def list2str_1d(nums):
+    """ 
+    Give a list of nums, output the head, the middle, and the tail of it
+    with nice format. Return the formatted string.
+    """
+
+    nvis = 3 # numbers printed out in each part
+    l = len(nums)
+    fmtstr = '{0:.4f} '
+    resstr = ''
+    for i in range(min(nvis, l)):
+        resstr += fmtstr.format(nums[i])
+    irange = range(max(nvis + 1, int(l / 2 - nvis / 2)), min(l, int(l / 2 + nvis / 2 + 1)))
+    if len(irange) > 0: resstr += ' ... '
+    for i in irange:
+        resstr += fmtstr.format(nums[i])
+    irange = range(max(int(l / 2 + nvis / 2 + 1), l - nvis), l)
+    if len(irange) > 0: resstr += ' ... '
+    for i in irange:
+        resstr += fmtstr.format(nums[i])
+    return resstr
+
 # export function only
 __all__ = [s for s in dir() if not s.startswith('_') and inspect.isfunction(getattr(sys.modules[__name__],s))]
 
