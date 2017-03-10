@@ -7,6 +7,7 @@ from struct import pack, unpack
 import re
 import sys
 import inspect
+import heapq
 
 
 from constants import *
@@ -149,6 +150,43 @@ def list2str_1d(nums):
     for i in irange:
         resstr += fmtstr.format(nums[i])
     return resstr
+
+
+def eigvec2str(eigvec, m, n, nctr, nvis = 6, npc = 6, iws = '  '):
+    """
+    Output some prominent matrix elements for an eigenvector matrix
+    
+    eigvec is given as a 1D array:
+    [ <B_1|1k>, <B_1|2k>, <B_2|1k>, <B_2|2k>]
+
+    which corresponds to such a matrix (m rows x n cols):
+    <B_1|1k>  <B_1|2k>
+    <B_2|1k>  <B_2|2k>
+
+    nctr: list states around the center nctr
+    nvis: number of printed out states
+    npc:  number of principal components
+    iws:  initial white spaces for indentation
+
+    """
+
+    resstr = iws + '{0:<10}{1}\n'.format('norm', 'principal components')
+    # guarantee len(eigvec) = n * m
+    for j in range(max(0, nctr - int(nvis / 2) + 1), min(n, nctr + int(nvis / 2) + 1)):
+        eabs = [ abs(eigvec[i * n + j]) ** 2 for i in range(m) ]
+        norm = sum(eabs)
+        # print out the norm
+        resstr += iws + '{0:<10.5f}'.format(norm)
+        # the wavefunction to print: |nk> = ...
+        resstr += '|n={0:>4},k> = '.format(j)
+        # Find the npc elements with the largest norm
+        indices = heapq.nlargest(npc, range(len(eabs)), key = lambda i : eabs[i])
+        for i in indices:
+            resstr += '({0:11.3f})|B_{1}> + '.format(eigvec[i * n + j], i)
+        resstr = resstr[:-3] # delete the last +
+        resstr += '\n'
+    return resstr
+
 
 # export function only
 __all__ = [s for s in dir() if not s.startswith('_') and inspect.isfunction(getattr(sys.modules[__name__],s))]

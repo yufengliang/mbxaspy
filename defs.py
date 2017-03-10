@@ -228,14 +228,18 @@ class optimal_basis_set_class(object):
     """ store information related to shirley optimal basis functions """
     
 
-    def __init__(self, nbasis = 0, nbnd = 0):
+    def __init__(self, nbasis = 0, nbnd = 0, nk = 1, nspin = 1, nelec = 0):
         sp = self.sp
         # variable list and default values
         self.nbasis     = nbasis
         self.nbnd       = nbnd
+        self.nk         = nk
+        self.nspin      = nspin
+        self.nelec      = nelec
         self.eigval     = sp.array([])    # eigenvalues (band energies)
         self.eigvec     = sp.array([])    # eigenvectors (wavefunctions)
 
+    # Should I input them at the pool root and then broadcast them ?
     def input_eigval(self, fh, sk_offset):
         sp = self.sp
         para = self.para
@@ -244,7 +248,8 @@ class optimal_basis_set_class(object):
             self.eigval = input_from_binary(fh, 'double', self.nbnd, sk_offset * self.nbnd)
         except struct.error:
             pass
-        self.para.print('  ' + list2str_1d(self.eigval)) 
+        # Output a part of eigenvalues
+        para.print('  ' + list2str_1d(self.eigval)) 
         self.eigval = sp.array(self.eigval)
 
     def input_eigvec(self, fh, sk_offset):
@@ -265,6 +270,8 @@ class optimal_basis_set_class(object):
             self.eigvec = input_from_binary(fh, 'complex', size, sk_offset * size)
         except struct.error:
             pass
+        # Output some major components of a part of eigenvalues near the fermi level
+        para.print(eigvec2str(self.eigvec, self.nbasis, self.nbnd, int(self.nelec / (3 - self.nspin))))
         # Note that reshape works in row-major order
         self.eigvec = sp.array(self.eigvec).reshape(self.nbasis, self.nbnd)
         
@@ -290,7 +297,7 @@ class scf_class(object):
         self.ncp    = 1                         # number of core levels
         self.nspin  = 1                         # number of spins
         self.nbasis = 1                         # number of basis
-        self.xmat   = sp.array([])         # single-particle matrix elements
+        self.xmat   = sp.array([])              # single-particle matrix elements
 
 
     def input_shirley(self, user_input, is_initial, isk = 0):
@@ -384,7 +391,12 @@ class scf_class(object):
                 # para.pool.print(str(para.pool.sk_list) + ' ' + str(para.pool.sk_offset)) # debug
 
                 # initialize obf
-                self.obf = optimal_basis_set_class(nbnd = self.nbnd) # there're more: nbasis, ...
+                # Typing this list of parameter again seems to be redundant. Use inheritance ?
+                self.obf = optimal_basis_set_class(nbnd   = self.nbnd, 
+                                                   nbasis = self.nbasis,
+                                                   nk     = self.nk,
+                                                   nspin  = self.nspin,
+                                                   nelec  = self.nelec) # there're more: nbasis, ...
 
             if f == 'eigval':
                 para.print('  Band energies: ')
