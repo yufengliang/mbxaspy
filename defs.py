@@ -121,8 +121,8 @@ class optimal_basis_set_class(object):
         self.eigvec = sp.array(self.eigvec).reshape(self.nbasis, self.nbnd)
         
 
-class paw_class(object):
-    """ store information related to projector-argumentated wave (PAW) method """
+class proj_class(object):
+    """ store information related to the projectors used in the projector-argumentated wave (PAW) method """
 
 
     def __init__(self):
