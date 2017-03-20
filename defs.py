@@ -210,7 +210,7 @@ class scf_class(object):
 
                 # initialize k-points
                 # print(self.nspin, self.nk, user_input.gamma_only) # debug
-                if user_input.gamma_only: self.nk = 1
+                if user_input.gamma_only: self.nk = self.nspin
                 self.kpt = kpoints_class(nk = self.nk) # do we need this ?
 
                 # Check k-grid consistency between the initial and final state
