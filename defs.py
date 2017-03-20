@@ -6,6 +6,7 @@ from __future__ import print_function
 import sys
 import os
 import struct
+import glob
 
 from constants import *
 from utils import *
@@ -125,9 +126,19 @@ class proj_class(object):
     """ store information related to the projectors used in the projector-argumentated wave (PAW) method """
 
 
-    def __init__(self):
+    def __init__(self, scf = None):
         # variable list and default values
         self.natom      = 0             # number of PAW atoms
+        self.scf        = scf           # so as to take the variables from the scf
+        if scf:
+            self.import_from_iptblk(scf.tmp_iptblk)
+
+    def import_from_iptblk(self, iptblk):
+            # import atomic species and positions (names)
+            self.atomic_species = atomic_species_to_list(iptblk['TMP_ATOMIC_SPECIES'])
+            self.atomic_pos     = atomic_positions_to_list(iptblk['TMP_ATOMIC_POSITIONS'])
+            print(self.atomic_species) # debug
+            print(self.atomic_pos) # debug
 
 
 class scf_class(object):
@@ -150,7 +161,11 @@ class scf_class(object):
         input from shirley xas
 
         Arguments:
-        is_initial: is this an initial-state scf
+
+        user_input: user_input_class that stores user input arguments
+
+        is_initial: is this an initial-state scf ?
+
         isk: the index of the spin-k-point block to be input
              isk == 0 indicates this is the first time reading the data and 
              we need to extract the basic scf information from the *.info file.
@@ -161,18 +176,32 @@ class scf_class(object):
         if is_initial: postfix = '_i'
         else: postfix = '_f'
         
+        # construct the path to the scf calculation and the file prefix
         path = getattr(user_input, 'path' + postfix)
         mol_name = getattr(user_input, 'mol_name' + postfix)
+
+        # import Input_Block.in from shirley_xas calculation if the first time to read
+        if isk < 0:
+            # fname = os.path.abspath(path + '/' + iptblk_fname) # Input_Block.in
+            fname = sorted(glob.glob(path + '/' + tmp_iptblk_fname + '*'))[-1]
+            with open(fname, 'r') as fh:
+                lines = fh.read()
+            self.tmp_iptblk = input_arguments(lines) # store variables in iptblk
+            print(self.tmp_iptblk['TMP_ATOMIC_SPECIES']) # debug
+            print(self.tmp_iptblk['TMP_ATOMIC_POSITIONS']) # debug
 
         # construct file names
         xas_prefix = mol_name + '.xas'
         xas_data_prefix = xas_prefix + '.' + str(user_input.xas_arg)
+
+        # Figure out which types of files to input
         ftype = []
-        if isk < 0: ftype.append('info')
-        if isk >= 0: 
+        if isk < 0: ftype.append('info') # if this is the first time to read, then read the information first
+        else: 
             ftype += ['eigval', 'eigvec', 'proj']
             if is_initial: ftype += ['xmat'] # need pos matrix element for the initial state
         
+        # Open and read the relevant files
         for f in ftype:
             fname = os.path.abspath(path + '/' + xas_data_prefix + '.' + f)
             if f == 'info': binary = '' # Need this because python3 will try to decode the binary file erroneously
@@ -182,10 +211,13 @@ class scf_class(object):
             except:
                 para.print(" Can't open " + fname + '. Check if shirley_xas finishes properly. Halt. ', flush = True)
                 para.stop()
+
+            # information file
             if f == 'info':
                 lines = fh.read()
                 var_input = input_arguments(lines, lower = True)
                 #para.print(var_input) # debug
+                # take specific variables of interest from the info file
                 for var in ['nbnd', 'nk', 'nelec', 'ncp', 'nspin', 'nbasis']:
                     if var in var_input:
                         try:
@@ -203,8 +235,8 @@ class scf_class(object):
                 info_str = ('  number of bands (nbnd)                    = {0}\n'\
                          +  '  number of spins (nspin)                   = {1}\n'\
                          +  '  number of k-points (nk)                   = {2}\n'\
-                         +  '  number of electrons (nelec)               = {3} \n'\
-                         +  '  number of optimal-basis function (nbasis) = {4} \n'\
+                         +  '  number of electrons (nelec)               = {3}\n'\
+                         +  '  number of optimal-basis function (nbasis) = {4}\n'\
                            ).format(self.nbnd, self.nspin, self.nk, self.nelec, self.nbasis)
                 para.print(info_str)
 
@@ -243,14 +275,23 @@ class scf_class(object):
                                                    nspin  = self.nspin,
                                                    nelec  = self.nelec) # there're more: nbasis, ...
 
+            # eigenvalue file
             if f == 'eigval':
                 para.print('  Band energies: ')
                 self.obf.input_eigval(fh, para.pool.sk_offset[isk])
                 para.print()
 
+            # eigenvector file
             if f == 'eigvec':
                 para.print('  Obf Wavefunctions : ')
                 self.obf.input_eigvec(fh, para.pool.sk_offset[isk])
+                para.print()
+
+            # projector file
+            if f == 'proj':
+                para.print('  Reading projectors ... ')
+                # initialize proj
+                self.proj = proj_class(self)
                 para.print()
 
             fh.close()           

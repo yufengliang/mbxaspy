@@ -183,9 +183,42 @@ def eigvec2str(eigvec, m, n, nctr, nvis = 6, npc = 6, iws = '  '):
         indices = heapq.nlargest(npc, range(len(eabs)), key = lambda i : eabs[i])
         for i in indices:
             resstr += '({0:11.3f})|B_{1}> + '.format(eigvec[i * n + j], i)
-        resstr = resstr[:-3] # delete the last +
-        resstr += '\n'
+        # resstr = resstr[:-3] # delete the last +
+        resstr += '... \n'
     return resstr
+
+
+def atomic_species_to_list(asp_str):
+    """
+    Convert a atomic_species block (as in Qespresso) into a list like:
+
+    [['Br', 'Br.pbe-van_mit.UPF'], ['C', 'C.pbe-van_bm.UPF'], ... ]
+
+    """
+    res = []
+    for l in asp_str.split('\n'):
+        words = l.split()
+        if len(words) == 3 and len(words[0]) < 3 and words[2].split('.')[-1] == 'UPF': 
+            # *** There should be more robust sanity checks: check elements
+            res.append([words[0], words[2]])
+    return res
+
+
+def atomic_positions_to_list(apos_str):
+    """
+     Convert a atomic_positions block (as in Qespresso) into a list like:
+
+    [['Pb', '0.0', '0.0', '0.0'], ['Br', '0.0', '0.0', '0.5'], ...]
+
+    Most interested in the atoms' names rather than their positions 
+    """
+    res = []
+    for l in apos_str.split('\n'):
+        words = l.split()
+        if len(words) >= 4 and len(words[0]) < 3:
+            # *** There should be more robust sanity checks: check elements
+            res.append(words)
+    return res
 
 
 # export function only
