@@ -77,6 +77,7 @@ class optimal_basis_set_class(object):
     def __init__(self, nbasis = 0, nbnd = 0, nk = 1, nspin = 1, nelec = 0):
         sp = self.sp
         # variable list and default values
+        # *** You can do this via import scf only 
         self.nbasis     = nbasis
         self.nbnd       = nbnd
         self.nk         = nk
@@ -93,7 +94,7 @@ class optimal_basis_set_class(object):
         try:
             self.eigval = input_from_binary(fh, 'double', self.nbnd, sk_offset * self.nbnd)
         except struct.error:
-            pass
+            para.error('Problem converting eigval file.')
         # Output a part of eigenvalues
         para.print('  ' + list2str_1d(self.eigval)) 
         self.eigval = sp.array(self.eigval)
@@ -102,7 +103,7 @@ class optimal_basis_set_class(object):
         sp = self.sp
         para = self.para
         pool = para.pool
-        size = self.nbnd * self.nbasis
+        size = self.nbasis * self.nbnd
         try:
             """
             eigvec is given as a 1D array (transpose(eigvec) in column-major order)
@@ -112,33 +113,134 @@ class optimal_basis_set_class(object):
             <B_1|1k>  <B_1|2k>
             <B_2|1k>  <B_2|2k>
             """
-            # Note that the input is the transpose of < B_i | nk >
+            # Note that the input is the transpose of < B_i | nk > ***
             self.eigvec = input_from_binary(fh, 'complex', size, sk_offset * size)
         except struct.error:
-            pass
+            para.error('Problem converting eigvec file.')
         # Output some major components of a part of eigenvalues near the fermi level
         para.print(eigvec2str(self.eigvec, self.nbasis, self.nbnd, int(self.nelec / (3 - self.nspin))))
         # Note that reshape works in row-major order
         self.eigvec = sp.array(self.eigvec).reshape(self.nbasis, self.nbnd)
-        
+
+    def input_overlap(self, nbnd1, nbnd2):
+        """ 
+        Input overlap < B_i | \tilde{B}_j > from file
+
+        It is of the specified size nbnd1 x nbnd2
+        """
+        sp = self.sp
+        para = self.para
+        try:
+            fh = open(overlap_fname, 'rb')
+        except IOError:
+            para.error('cannot open {0}'.format(overlap_fname))
+        self.overlap = input_from_binary(fh, 'complex', nbnd1 * nbnd2, 0)
+        # Note that in fortran this is in column-major order
+        self.overlap = sp.array(self.overlap).reshape(nbnd2, nbnd1).transpose()
+        fh.close()
+
 
 class proj_class(object):
     """ store information related to the projectors used in the projector-argumentated wave (PAW) method """
 
 
     def __init__(self, scf = None):
+        sp = self.sp
         # variable list and default values
-        self.natom      = 0             # number of PAW atoms
+        self.nspecies   = 0             # number of species of PAW atoms
+        self.natom      = 0             # number of atoms
         self.scf        = scf           # so as to take the variables from the scf
+        self.xs, self.x = -1, -1        # Assume no excited atoms
+        self.l          = []            # angular momenta of all atom species
+        self.qij        = []            # Q_int of all atom species
+        self.nproj      = 0             # total number of projectors
+        self.beta_nk    = sp.array([])  # < beta | nk > as in shirley_xas
+        self.sij        = []            # PAW atomic overlap S_int between i and f
         if scf:
             self.import_from_iptblk(scf.tmp_iptblk)
+            self.import_l_qij()
+
 
     def import_from_iptblk(self, iptblk):
-            # import atomic species and positions (names)
-            self.atomic_species = atomic_species_to_list(iptblk['TMP_ATOMIC_SPECIES'])
-            self.atomic_pos     = atomic_positions_to_list(iptblk['TMP_ATOMIC_POSITIONS'])
-            print(self.atomic_species) # debug
-            print(self.atomic_pos) # debug
+        """ import atomic species and positions (names) from TMP_INPUT by shirley_xas """
+        para = self.para
+        self.atomic_species = atomic_species_to_list(iptblk['TMP_ATOMIC_SPECIES']) # element pseudopotential_file
+        self.atomic_pos     = atomic_positions_to_list(iptblk['TMP_ATOMIC_POSITIONS']) # element x y z
+        # para.print(self.atomic_species) # debug
+        # para.print(self.atomic_pos) # debug
+        # identify the excited atom if any
+        self.nspecies   = len(self.atomic_species)
+        self.natom      = len(self.atomic_pos)
+        self.ind        = {}
+        for i in range(self.nspecies):
+            if self.atomic_species[i][0][-1] == 'X': self.xs = i
+            self.ind[self.atomic_species[i][0]] = i
+        for i in range(self.natom):
+            if self.atomic_pos[i][0][-1] == 'X': self.x = i
+        para.print('  number of atom species                    = {0}'.format(self.nspecies))
+        para.print('  number of atoms                           = {0}'.format(self.natom))
+        if self.x >= 0: para.print(' The excited atom is ' + str(self.x)) # debug
+
+
+    def import_l_qij(self):
+        """ import Q_int for all ground-state atoms in the supercell """
+        para    = self.para
+        scf     = self.scf
+        para.print('  {0:6}{1:<30}{2:<20}'.format('Kind', 'UPF', 'Beta L'))
+        # Import l and qij for each species of atom
+        for i in range(self.nspecies): 
+            pseudo_fname = scf.tmp_iptblk['TMP_PSEUDO_DIR'] + '/' + self.atomic_species[i][1]
+            l, qij, errmsg = read_qij_from_upf(pseudo_fname)
+            # para.print(l) # debug
+            # para.print(qij) # debug
+            if errmsg:
+                para.error('read_qij_from_upf: {0}'.format(errmsg))
+            # print out PAW atom information
+            para.print('  {0:6}{1:<30}{2:<20}'.format(self.atomic_species[i][0], self.atomic_species[i][1], str(l).strip('[]')))
+            self.l.append(l)
+            self.qij.append(qij)
+        # Calculate total # of projectors in the system
+        for i in range(self.natom):
+            self.nproj += sum([2 * l + 1 for l in self.l[self.ind[self.atomic_pos[i][0]]]])
+        para.print('  number of projectors = {0}'.format(self.nproj))
+
+
+    def input_sij(self):
+        """ 
+        input the atomic overlap term sij
+
+        There should be one sij file for one UPF file of each excited atom.
+        For example:
+        O.pbe-van-yufengl-1s1.sij => O.pbe-van-yufengl-1s1.UPF
+        So we would need to look for sij for a given UPF
+        """
+        scf = self.scf
+        para = self.para
+        if self.x >= 0: # if there exists an excited atom
+            fname = self.atomic_species[self.xs][1]
+            fname = scf.tmp_iptblk['TMP_PSEUDO_DIR'] + '/' + os.path.splitext(fname)[0] + '.sij'
+            try:
+                fh = open(fname, 'r')
+            except IOError:
+                para.error('cannot open sij file: {0}'.format(fname))
+            for line in fh:
+                self.sij.append([float(_) for _ in line.split()])
+            fh.close()
+            para.print('  Sij imported from {0}'.format(fname))
+            # para.print('sij = ' + str(self.sij)) # debug
+
+
+    def input_proj(self, fh, sk_offset):
+        """ input projectors from shirley_xas calculation """
+        para    = self.para
+        scf     = self.scf
+        sp      = self.sp
+        size    = self.nproj * scf.nbnd
+        try:
+            self.beta_nk = input_from_binary(fh, 'complex', size, sk_offset * size)
+        except struct.error:
+            para.error('Problem converting proj file.')
+        self.beta_nk = sp.array(self.beta_nk).reshape(self.nproj, scf.nbnd)
 
 
 class scf_class(object):
@@ -187,8 +289,8 @@ class scf_class(object):
             with open(fname, 'r') as fh:
                 lines = fh.read()
             self.tmp_iptblk = input_arguments(lines) # store variables in iptblk
-            print(self.tmp_iptblk['TMP_ATOMIC_SPECIES']) # debug
-            print(self.tmp_iptblk['TMP_ATOMIC_POSITIONS']) # debug
+            # para.print(self.tmp_iptblk['TMP_ATOMIC_SPECIES']) # debug
+            # para.print(self.tmp_iptblk['TMP_ATOMIC_POSITIONS']) # debug
 
         # construct file names
         xas_prefix = mol_name + '.xas'
@@ -196,7 +298,7 @@ class scf_class(object):
 
         # Figure out which types of files to input
         ftype = []
-        if isk < 0: ftype.append('info') # if this is the first time to read, then read the information first
+        if isk < 0: ftype += ['info', 'proj'] # if this is the first time to read, then read the information first
         else: 
             ftype += ['eigval', 'eigvec', 'proj']
             if is_initial: ftype += ['xmat'] # need pos matrix element for the initial state
@@ -245,7 +347,7 @@ class scf_class(object):
                 if user_input.gamma_only: self.nk = self.nspin
                 self.kpt = kpoints_class(nk = self.nk) # do we need this ?
 
-                # Check k-grid consistency between the initial and final state
+                # Check k-grid consistency between the initial and final state *** We should move this check outside 
                 if not is_initial:
                     if para.pool.nk != self.nk: # if the initial-state # of kpoints is not the same with the final-state one
                         para.print(' Inconsistent k-point number nk_i = ' + str(para.pool.nk) + ' v.s. nk_f = ' + str(self.nk) + ' Halt.')
@@ -289,12 +391,18 @@ class scf_class(object):
 
             # projector file
             if f == 'proj':
-                para.print('  Reading projectors ... ')
-                # initialize proj
-                self.proj = proj_class(self)
+                if isk < 0:
+                    # initialize proj
+                    para.print('  Reading information on PAW atoms ... ')
+                    self.proj = proj_class(self)
+                    if not is_initial:
+                        self.proj.input_sij()
+                else:
+                    para.print('  Reading projectors ... ')
+                    self.proj.input_proj(fh, para.pool.sk_offset[isk])
                 para.print()
-
-            fh.close()           
+            fh.close()
+        
         
     def input(self, user_input, is_initial, isk):
         """ input from one shirley run """

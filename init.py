@@ -58,7 +58,7 @@ user_input = user_input_class()
 __all__ += ['user_input']
 
 # Pass attributes
-for obj in ['scf_class', 'optimal_basis_set_class', 'user_input_class']:
+for obj in ['scf_class', 'optimal_basis_set_class', 'proj_class', 'user_input_class']:
     for attr in ['sp', 'para']:
         setattr(eval(obj), attr, eval(attr))
 

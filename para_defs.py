@@ -162,4 +162,8 @@ class para_class(object):
             # non-mpi
             sys.exit(0)
 
+    def error(self, msg = ''):
+        """ print error message and quit """
+        self.print('Error: ' + msg + '\nHalt.', flush = True)
+        self.stop()
 

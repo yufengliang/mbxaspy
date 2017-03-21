@@ -221,6 +221,41 @@ def atomic_positions_to_list(apos_str):
     return res
 
 
+def read_qij_from_upf(upf_fname):
+    """
+    Given a PAW/ultrasoft pseudopotential in UPF format, find the projectors' angular momenta
+    and the corresponding Q_int matrices in the file.
+
+    """
+    l   = [] # angular momentum number
+    qij = [] # Q_int matrix
+    i, j = 0, 0
+    errmsg = ''
+    fh = []
+    try:
+        fh = open(upf_fname, 'r')
+    except IOError:
+        errmsg = 'cannot open UPF file: ' + str(upf_fname)
+    for line in fh:
+        words = line.split()
+        if len(words) >= 4 and words[2 : 4] == ['Beta', 'L']:
+            l.append(int(words[1]))
+        if len(words) >= 2 and words[1] == 'Q_int':
+            if (i, j) == (0, 0):
+                # if first time, initialize the qij matrix
+                qij = [[0.0] * len(l) for _ in l]
+            try:
+                qij[i][j] = float(words[0])
+            except IndexError:
+                errmsg = 'too many Q_int for given l = ' + str(len(l))
+                break
+            qij[j][i] = qij[i][j]
+            j += 1
+            if j > len(l) - 1: i, j = i + 1, i + 1
+    if fh: fh.close()
+    return l, qij, errmsg
+
+        
 # export function only
 __all__ = [s for s in dir() if not s.startswith('_') and inspect.isfunction(getattr(sys.modules[__name__],s))]
 

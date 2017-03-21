@@ -25,6 +25,9 @@ fscf.input(user_input = user_input,
            is_initial = False,
            isk = -1)
 
+# Input < B_i | \tilde{B}_j >
+fscf.obf.input_overlap(iscf.nbnd, fscf.nbnd)
+
 # loop over spin and kpoints
 for isk in range(para.pool.nsk):
 
