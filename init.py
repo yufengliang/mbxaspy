@@ -62,6 +62,8 @@ for obj in ['scf_class', 'optimal_basis_set_class', 'proj_class', 'user_input_cl
     for attr in ['sp', 'para']:
         setattr(eval(obj), attr, eval(attr))
 
+scf_class.userin = user_input
+
 # initial- and final-state scf
 iscf = scf_class()
 fscf = scf_class()

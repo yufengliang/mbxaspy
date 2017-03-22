@@ -6,6 +6,8 @@ import sys
 import os
 
 from utils import *
+from constants import *
+
 
 class pool_class(object):
     """ 
@@ -166,4 +168,7 @@ class para_class(object):
         """ print error message and quit """
         self.print('Error: ' + msg + '\nHalt.', flush = True)
         self.stop()
+
+    def sep_line(self):
+        self.print(separation_line)
 

@@ -17,16 +17,17 @@ class user_input_class(object):
 
     def __init__(self):
         # user-defined variables and default values
-        self.path_i     = '.'
-        self.path_f     = '.'
-        self.nbnd       = 0
-        self.nelec      = 0
-        self.gamma_only = False
-        self.scf_type   = 'shirley_xas'
-        self.xas_arg    = 5
-        self.mol_name_i = 'mol_name'
-        self.mol_name_f = 'xatom'
+        self.path_i         = '.'
+        self.path_f         = '.'
+        self.nbnd           = 0
+        self.nelec          = 0
+        self.scf_type       = 'shirley_xas'
+        self.xas_arg        = 5
+        self.mol_name_i     = 'mol_name'
+        self.mol_name_f     = 'xatom'
         self.nproc_per_pool = 1
+        self.gamma_only     = False
+        self.final_1p       = False
 
     def read(self):
         """ input from stdin or userin"""
@@ -122,22 +123,30 @@ class optimal_basis_set_class(object):
         # Note that reshape works in row-major order
         self.eigvec = sp.array(self.eigvec).reshape(self.nbasis, self.nbnd)
 
-    def input_overlap(self, nbnd1, nbnd2):
+    def input_overlap(self, path, nbnd1, nbnd2):
         """ 
         Input overlap < B_i | \tilde{B}_j > from file
 
         It is of the specified size nbnd1 x nbnd2
         """
-        sp = self.sp
-        para = self.para
+        fname = path + '/' + overlap_fname
         try:
-            fh = open(overlap_fname, 'rb')
+            # fh = open(overlap_fname, 'rb') # Fortran unformatted output may vary depending on compilers
+            fh = open(fname, 'r')
         except IOError:
-            para.error('cannot open {0}'.format(overlap_fname))
-        self.overlap = input_from_binary(fh, 'complex', nbnd1 * nbnd2, 0)
+            self.para.error('cannot open {0}'.format(overlap_fname))
+        # self.overlap = input_from_binary(fh, 'complex', nbnd1 * nbnd2, 0) # binary
+        self.overlap = []
+        for line in fh:
+            self.overlap.append(float(line.split()[0]) + 1j * float(line.split()[1]))
         # Note that in fortran this is in column-major order
-        self.overlap = sp.array(self.overlap).reshape(nbnd2, nbnd1).transpose()
+        try:
+            self.overlap = self.sp.array(self.overlap).reshape(nbnd2, nbnd1).transpose()
+        except ValueError as vle:
+            self.para.error(vle + '\n Insufficient data in {0} for nbnd1 = {1} and nbnd2 = {2}'.format(fname, nbnd1, nbnd2))
+        # self.para.print(self.overlap[0:2, 0:5]) # debug
         fh.close()
+        self.para.print('  Overlap matrix < B_i | ~B_j > imported from {0}'.format(fname))
 
 
 class proj_class(object):
@@ -258,7 +267,24 @@ class scf_class(object):
         self.xmat   = sp.array([])              # single-particle matrix elements
 
 
-    def input_shirley(self, user_input, is_initial, isk = 0):
+    def input_xmat(self, fh, sk_offset, is_initial = True):
+        """ input matrix elements from fh """
+        size = self.nbnd * self.ncp * nxyz
+        try:
+            self.beta_nk = input_from_binary(fh, 'complex', size, sk_offset * size)
+        except struct.error:
+            if self.userin.final_1p and not is_initial:
+                self.para.print('Problem converting xmat file. Skip one-body final-state spectrum. ')
+                self.userin.final_1p = False
+                return
+            else:
+                self.para.error('Problem converting xmat file.')
+        # Note that the indexing in fortran is reversed
+        # In shirley_xas, posn is nbnd x ncp x nxyz 3d array
+        self.xmat = self.sp.array(self.beta_nk).reshape(nxyz, self.ncp, self.nbnd).transpose()
+        
+
+    def input_shirley(self, is_initial = True, isk = 0):
         """ 
         input from shirley xas
 
@@ -272,15 +298,16 @@ class scf_class(object):
              isk == 0 indicates this is the first time reading the data and 
              we need to extract the basic scf information from the *.info file.
         """
-        para = self.para
+        para    = self.para
+        userin  = self.userin
 
         # stripe the i/f postfix
         if is_initial: postfix = '_i'
         else: postfix = '_f'
         
         # construct the path to the scf calculation and the file prefix
-        path = getattr(user_input, 'path' + postfix)
-        mol_name = getattr(user_input, 'mol_name' + postfix)
+        path = getattr(userin, 'path' + postfix)
+        mol_name = getattr(userin, 'mol_name' + postfix)
 
         # import Input_Block.in from shirley_xas calculation if the first time to read
         if isk < 0:
@@ -294,14 +321,14 @@ class scf_class(object):
 
         # construct file names
         xas_prefix = mol_name + '.xas'
-        xas_data_prefix = xas_prefix + '.' + str(user_input.xas_arg)
+        xas_data_prefix = xas_prefix + '.' + str(userin.xas_arg)
 
         # Figure out which types of files to input
         ftype = []
         if isk < 0: ftype += ['info', 'proj'] # if this is the first time to read, then read the information first
         else: 
             ftype += ['eigval', 'eigvec', 'proj']
-            if is_initial: ftype += ['xmat'] # need pos matrix element for the initial state
+            if is_initial or userin.final_1p: ftype += ['xmat'] # need pos matrix element for the initial state
         
         # Open and read the relevant files
         for f in ftype:
@@ -343,8 +370,8 @@ class scf_class(object):
                 para.print(info_str)
 
                 # initialize k-points
-                # print(self.nspin, self.nk, user_input.gamma_only) # debug
-                if user_input.gamma_only: self.nk = self.nspin
+                # print(self.nspin, self.nk, userin.gamma_only) # debug
+                if userin.gamma_only: self.nk = self.nspin
                 self.kpt = kpoints_class(nk = self.nk) # do we need this ?
 
                 # Check k-grid consistency between the initial and final state *** We should move this check outside 
@@ -356,13 +383,13 @@ class scf_class(object):
 
                 if is_initial and not para.pool.up:
                     # set up pools
-                    if self.nk < para.size / user_input.nproc_per_pool:
-                        para.print(' Too few k-points (' + str(self.nk) + ') for ' + str(int(para.size / user_input.nproc_per_pool)) + ' pools.')
+                    if self.nk < para.size / userin.nproc_per_pool:
+                        para.print(' Too few k-points (' + str(self.nk) + ') for ' + str(int(para.size / userin.nproc_per_pool)) + ' pools.')
                         para.print(' Increat nproc_per_pool to ' + str(int(para.size / self.nk)))
                         para.print()
-                        user_input.nproc_per_pool = int(para.size / self.nk)
+                        userin.nproc_per_pool = int(para.size / self.nk)
 
-                    para.pool.set_pool(user_input.nproc_per_pool)
+                    para.pool.set_pool(userin.nproc_per_pool)
                     para.pool.info()
 
                 # get spin and k-point index processed by this pool
@@ -401,18 +428,22 @@ class scf_class(object):
                     para.print('  Reading projectors ... ')
                     self.proj.input_proj(fh, para.pool.sk_offset[isk])
                 para.print()
+
+            # xmat file: matrix elements
+            if f == 'xmat':
+                para.print('  Reading single-body matrix elements ... ')
+                self.input_xmat(fh, para.pool.sk_offset[isk], is_initial)
+                para.print()
             fh.close()
         
         
-    def input(self, user_input, is_initial, isk):
+    def input(self, is_initial = True, isk = -1):
         """ input from one shirley run """
-        para = self.para
-        if user_input.scf_type == 'shirley_xas':
-            if isk < 0: para.print(' Wavefunctions and energies will be imported from shirley_xas calculation. \n ')
-            self.input_shirley(user_input, is_initial, isk)
+        if self.userin.scf_type == 'shirley_xas':
+            if isk < 0: self.para.print(' Wavefunctions and energies will be imported from shirley_xas calculation. \n ')
+            self.input_shirley(is_initial, isk)
         else:
-            para.print(' Unsupported scf input: ' + scf_type + ' Halt. ')
-            para.stop()
+            self.para.error(' Unsupported scf input: ' + scf_type)
             
 
 
