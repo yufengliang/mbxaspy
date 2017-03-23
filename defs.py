@@ -28,6 +28,7 @@ class user_input_class(object):
         self.nproc_per_pool = 1
         self.gamma_only     = False
         self.final_1p       = False
+        self.xi_analysis    = False
 
     def read(self):
         """ input from stdin or userin"""
@@ -167,16 +168,18 @@ class proj_class(object):
         self.nprojs     = []            # number of projectors for each atom
         self.beta_nk    = sp.matrix([]) # < beta | nk > as in shirley_xas
         self.sij        = []            # PAW atomic overlap S_int between i and f
+        self.icore      = 0             # index of this excited atom among all excited atoms
         if scf:
             self.import_from_iptblk(scf.tmp_iptblk)
             self.import_l_qij()
+            self.find_icore()
 
 
-    def import_from_iptblk(self, iptblk):
+    def import_from_iptblk(self, tmp_iptblk):
         """ import atomic species and positions (names) from TMP_INPUT by shirley_xas """
         para = self.para
-        self.atomic_species = atomic_species_to_list(iptblk['TMP_ATOMIC_SPECIES']) # element pseudopotential_file
-        self.atomic_pos     = atomic_positions_to_list(iptblk['TMP_ATOMIC_POSITIONS']) # element x y z
+        self.atomic_species = atomic_species_to_list(tmp_iptblk['TMP_ATOMIC_SPECIES']) # element pseudopotential_file
+        self.atomic_pos     = atomic_positions_to_list(tmp_iptblk['TMP_ATOMIC_POSITIONS']) # element x y z
         # para.print(self.atomic_species) # debug
         # para.print(self.atomic_pos) # debug
         # identify the excited atom if any
@@ -217,6 +220,19 @@ class proj_class(object):
             self.nproj += self.nprojs[self.ind[self.atomic_pos[i][0]]]
         para.print('  number of projectors = {0}'.format(self.nproj))
 
+
+    def find_icore(self):
+        """ Calculate the index of this excited atom among all the excited atoms """
+        self.ind_excitation = [0] * self.natom
+        for key in self.scf.iptblk:
+            if 'IND_EXCITATION' in key:
+                self.ind_excitation[get_index(key) - 1] = int(self.scf.iptblk[key])
+        # self.para.print(self.ind_excitation) # debug
+        nexcited = 0
+        for i in range(self.natom):
+            if nexcited == self.x: self.icore = i; break
+            nexcited += self.ind_excitation[i]
+        self.para.print('  icore = {0}'.format(self.icore))
 
     def input_sij(self):
         """ 
@@ -269,11 +285,11 @@ class scf_class(object):
         self.xmat   = sp.array([])              # single-particle matrix elements
 
 
-    def input_xmat(self, fh, sk_offset, is_initial = True):
+    def input_xmat(self, fh, offset, sk_offset, is_initial = True):
         """ input matrix elements from fh """
         size = self.nbnd * self.ncp * nxyz
         try:
-            self.xmat = input_from_binary(fh, 'complex', size, sk_offset * size)
+            self.xmat = input_from_binary(fh, 'complex', size, offset + sk_offset * size)
         except struct.error:
             if self.userin.final_1p and not is_initial:
                 self.para.print('Problem converting xmat file. Skip one-body final-state spectrum. ')
@@ -311,13 +327,29 @@ class scf_class(object):
         path = getattr(userin, 'path' + postfix)
         mol_name = getattr(userin, 'mol_name' + postfix)
 
-        # import Input_Block.in from shirley_xas calculation if the first time to read
+        # import Input_Block.in and TMP_INPUT* from shirley_xas calculation if the first time to read
         if isk < 0:
-            # fname = os.path.abspath(path + '/' + iptblk_fname) # Input_Block.in
-            fname = sorted(glob.glob(path + '/' + tmp_iptblk_fname + '*'))[-1]
-            with open(fname, 'r') as fh:
-                lines = fh.read()
+
+            fname = path + '/' + iptblk_fname # Input_Block.in
+            try:
+                with open(fname, 'r') as fh:
+                    lines = fh.read()
+            except IOError:
+                para.error('Problem reading {0}'.format(fname))
+            self.iptblk = input_arguments(lines) # store variables in iptblk
+
+            tmp_file_list = sorted(glob.glob(path + '/' + tmp_iptblk_fname + '*'))
+            if not tmp_file_list:
+                para.error('cannot find any {0} file in {1}'.format(tmp_iptblk_fname, path))
+            fname = tmp_file_list[-1]
+            try:
+                with open(fname, 'r') as fh:
+                    lines = fh.read()
+            except IOError:
+                para.error('Problem reading {0}'.format(fname))
             self.tmp_iptblk = input_arguments(lines) # store variables in iptblk
+
+            # para.print(self.iptblk['IND_EXCITATION[0]']) # debug
             # para.print(self.tmp_iptblk['TMP_ATOMIC_SPECIES']) # debug
             # para.print(self.tmp_iptblk['TMP_ATOMIC_POSITIONS']) # debug
 
@@ -434,7 +466,11 @@ class scf_class(object):
             # xmat file: matrix elements
             if f == 'xmat':
                 para.print('  Reading single-body matrix elements ... ')
-                self.input_xmat(fh, para.pool.sk_offset[isk], is_initial)
+                # This is important: for the ground-state system, xmat for all excited atoms
+                # are stored in the same xmat file. You need to set up an offset to locate the 
+                # right block for this excited atom being processed
+                offset = self.nk * self.nbnd * self.ncp * nxyz
+                self.input_xmat(fh, offset, para.pool.sk_offset[isk], is_initial)
                 para.print()
             fh.close()
         

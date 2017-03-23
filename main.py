@@ -46,9 +46,10 @@ for isk in range(para.pool.nsk):
 
     # Compute \xi
     xi = compute_xi(iscf, fscf)
-    para.print(xi) # debug
-    plot_xi(xi, sp) # debug
-    msg = eig_analysis_xi(xi, sp, la) # debug
+    #para.print(xi) # debug
+    if user_input.xi_analysis and para.pool.isroot():
+        plot_xi(xi, sp) # debug
+        msg = eig_analysis_xi(xi, sp, la) # debug
 
 
 

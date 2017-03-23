@@ -255,7 +255,13 @@ def read_qij_from_upf(upf_fname):
     if fh: fh.close()
     return l, qij, errmsg
 
-        
+def get_index(s):
+    """ 
+    get the index in the string like 'a[4]'.
+    should return 4
+    """
+    return int(s[s.find("[")+1:s.find("]")])
+
 # export function only
 __all__ = [s for s in dir() if not s.startswith('_') and inspect.isfunction(getattr(sys.modules[__name__],s))]
 

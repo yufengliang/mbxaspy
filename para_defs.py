@@ -118,6 +118,7 @@ class pool_class(object):
             self.sk_list_all = self.sk_list
         
     def isroot(self):
+        """ is this the root of the current pool ? """
         if self.para.rank in self.roots: return True
         else: return False
 
