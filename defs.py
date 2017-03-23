@@ -85,7 +85,7 @@ class optimal_basis_set_class(object):
         self.nspin      = nspin
         self.nelec      = nelec
         self.eigval     = sp.array([])    # eigenvalues (band energies)
-        self.eigvec     = sp.array([])    # eigenvectors (wavefunctions)
+        self.eigvec     = sp.matrix([])    # eigenvectors (wavefunctions)
 
     # Should I input them at the pool root and then broadcast them ?
     def input_eigval(self, fh, sk_offset):
@@ -120,8 +120,9 @@ class optimal_basis_set_class(object):
             para.error('Problem converting eigvec file.')
         # Output some major components of a part of eigenvalues near the fermi level
         para.print(eigvec2str(self.eigvec, self.nbasis, self.nbnd, int(self.nelec / (3 - self.nspin))))
-        # Note that reshape works in row-major order
-        self.eigvec = sp.array(self.eigvec).reshape(self.nbasis, self.nbnd)
+        # Note that reshape works in row-major order 
+        # eigvec = < B_i | nk > 
+        self.eigvec = sp.matrix(self.eigvec).reshape(self.nbasis, self.nbnd)
 
     def input_overlap(self, path, nbnd1, nbnd2):
         """ 
@@ -141,7 +142,7 @@ class optimal_basis_set_class(object):
             self.overlap.append(float(line.split()[0]) + 1j * float(line.split()[1]))
         # Note that in fortran this is in column-major order
         try:
-            self.overlap = self.sp.array(self.overlap).reshape(nbnd2, nbnd1).transpose()
+            self.overlap = self.sp.matrix(self.overlap).reshape(nbnd2, nbnd1).transpose()
         except ValueError as vle:
             self.para.error(vle + '\n Insufficient data in {0} for nbnd1 = {1} and nbnd2 = {2}'.format(fname, nbnd1, nbnd2))
         # self.para.print(self.overlap[0:2, 0:5]) # debug
@@ -163,7 +164,8 @@ class proj_class(object):
         self.l          = []            # angular momenta of all atom species
         self.qij        = []            # Q_int of all atom species
         self.nproj      = 0             # total number of projectors
-        self.beta_nk    = sp.array([])  # < beta | nk > as in shirley_xas
+        self.nprojs     = []            # number of projectors for each atom
+        self.beta_nk    = sp.matrix([]) # < beta | nk > as in shirley_xas
         self.sij        = []            # PAW atomic overlap S_int between i and f
         if scf:
             self.import_from_iptblk(scf.tmp_iptblk)
@@ -208,9 +210,11 @@ class proj_class(object):
             para.print('  {0:6}{1:<30}{2:<20}'.format(self.atomic_species[i][0], self.atomic_species[i][1], str(l).strip('[]')))
             self.l.append(l)
             self.qij.append(qij)
+            # Calculate # projectors for each kind of atom
+            self.nprojs.append(sum([2 * _ + 1 for _ in l]))
         # Calculate total # of projectors in the system
         for i in range(self.natom):
-            self.nproj += sum([2 * l + 1 for l in self.l[self.ind[self.atomic_pos[i][0]]]])
+            self.nproj += self.nprojs[self.ind[self.atomic_pos[i][0]]]
         para.print('  number of projectors = {0}'.format(self.nproj))
 
 
@@ -241,15 +245,13 @@ class proj_class(object):
 
     def input_proj(self, fh, sk_offset):
         """ input projectors from shirley_xas calculation """
-        para    = self.para
         scf     = self.scf
-        sp      = self.sp
         size    = self.nproj * scf.nbnd
         try:
             self.beta_nk = input_from_binary(fh, 'complex', size, sk_offset * size)
         except struct.error:
-            para.error('Problem converting proj file.')
-        self.beta_nk = sp.array(self.beta_nk).reshape(self.nproj, scf.nbnd)
+            self.para.error('Problem converting proj file.')
+        self.beta_nk = self.sp.matrix(self.beta_nk).reshape(scf.nbnd, self.nproj).transpose()
 
 
 class scf_class(object):
@@ -271,7 +273,7 @@ class scf_class(object):
         """ input matrix elements from fh """
         size = self.nbnd * self.ncp * nxyz
         try:
-            self.beta_nk = input_from_binary(fh, 'complex', size, sk_offset * size)
+            self.xmat = input_from_binary(fh, 'complex', size, sk_offset * size)
         except struct.error:
             if self.userin.final_1p and not is_initial:
                 self.para.print('Problem converting xmat file. Skip one-body final-state spectrum. ')
@@ -280,8 +282,8 @@ class scf_class(object):
             else:
                 self.para.error('Problem converting xmat file.')
         # Note that the indexing in fortran is reversed
-        # In shirley_xas, posn is nbnd x ncp x nxyz 3d array
-        self.xmat = self.sp.array(self.beta_nk).reshape(nxyz, self.ncp, self.nbnd).transpose()
+        # In shirley_xas, posn is nbnd x ncp x nxyz 3d array; xmat is the same here
+        self.xmat = self.sp.array(self.xmat).reshape(nxyz, self.ncp, self.nbnd).transpose()
         
 
     def input_shirley(self, is_initial = True, isk = 0):

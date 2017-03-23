@@ -26,6 +26,11 @@ fscf.input(is_initial = False, isk = -1)
 # Input < B_i | \tilde{B}_j >
 fscf.obf.input_overlap(user_input.path_f, iscf.nbnd, fscf.nbnd)
 
+from xi import *
+# Compute full atomic overlap sij
+if user_input.scf_type == 'shirley_xas': 
+    compute_full_sij(fscf.proj)
+
 # loop over spin and kpoints
 for isk in range(para.pool.nsk):
 
@@ -38,5 +43,11 @@ for isk in range(para.pool.nsk):
     para.sep_line()
     para.print(' Import final-state scf for (ispin, ik) = ({0},{1}) \n'.format(para.pool.sk_list[isk][0], para.pool.sk_list[isk][1]))
     fscf.input(is_initial = False, isk = isk)
+
+    # Compute \xi
+    xi = compute_xi(iscf, fscf)
+    para.print(xi) # debug
+    plot_xi(xi, sp)
+
 
 
