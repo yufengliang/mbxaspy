@@ -60,7 +60,7 @@ def compute_xi(iscf, fscf):
         proj_offset = 0
         proj = fscf.proj
 
-        do_paw_correction = False # Just a flag for turning on PAW core correction
+        do_paw_correction = True # Just a flag for turning on PAW core correction
         if do_paw_correction:
             for I in range(proj.natom):
                 atom_name   = proj.atomic_pos[I][0]
@@ -91,4 +91,24 @@ def plot_xi(xi, sp):
     plt.axes().set_aspect('equal')
     plt.savefig('test_xi.eps', format = 'eps', dpi = 1000)
     plt.close()
-    
+
+def eig_analysis_xi(xi, sp, la):
+    """
+    Analyze the eigenvalues of the transformation matrix xi
+
+    sp: scipy or numpy
+    la: linalg
+    """
+    size = min(xi.shape)
+    xi_eigval, xi_eigvec = la.eig(xi[0 : size, 0 : size])
+    from matplotlib import pyplot as plt # This import is temporarily here ***
+    # Now I plot the abs of eigenvalues
+    plt.stem(abs(xi_eigval))
+    plt.xlim([-1, size])
+    plt.savefig('test_xi_eig.eps', format = 'eps', dpi = 1000)
+    plt.close()
+    # Analyze eigenvalues and return a message
+    msg = ''
+    return msg
+
+
