@@ -228,11 +228,7 @@ class proj_class(object):
             if 'IND_EXCITATION' in key:
                 self.ind_excitation[get_index(key) - 1] = int(self.scf.iptblk[key])
         # self.para.print(self.ind_excitation) # debug
-        nexcited = 0
-        for i in range(self.natom):
-            if nexcited == self.x: self.icore = i; break
-            nexcited += self.ind_excitation[i]
-        self.para.print('  icore = {0}'.format(self.icore))
+        if self.x > 0: self.icore = sum(self.ind_excitation[0 : self.x])
 
     def input_sij(self):
         """ 
@@ -469,7 +465,11 @@ class scf_class(object):
                 # This is important: for the ground-state system, xmat for all excited atoms
                 # are stored in the same xmat file. You need to set up an offset to locate the 
                 # right block for this excited atom being processed
-                offset = self.nk * self.nbnd * self.ncp * nxyz
+                if is_initial: 
+                    para.print('  This is {0}th excited atom. '.format(self.proj.icore))
+                    size = self.nk * self.nbnd * self.ncp * nxyz
+                    offset = size * self.proj.icore
+                else: offset = 0
                 self.input_xmat(fh, offset, para.pool.sk_offset[isk], is_initial)
                 para.print()
             fh.close()
