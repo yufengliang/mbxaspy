@@ -19,13 +19,23 @@ class user_input_class(object):
         # user-defined variables and default values
         self.path_i         = '.'
         self.path_f         = '.'
+        self.mol_name_i     = 'mol_name'
+        self.mol_name_f     = 'xatom'
+        self.xas_arg        = 5
         self.nbnd           = 0
         self.nelec          = 0
         self.scf_type       = 'shirley_xas'
-        self.xas_arg        = 5
-        self.mol_name_i     = 'mol_name'
-        self.mol_name_f     = 'xatom'
         self.nproc_per_pool = 1
+
+        # spectral information
+        self.ELOW           = -2.0      # eV
+        self.EHIGH          = 8.0       # eV
+        self.ESHIFT_FINAL   = 0.0       # eV
+        self.NENER          = 100       # eV
+        self.SIGMA          = 0.2       # eV
+        self.smearing       = 'gauss'   # gauss or lor (lorentzian)
+
+        # control flags
         self.gamma_only     = False
         self.final_1p       = False
         self.xi_analysis    = False
@@ -65,12 +75,9 @@ class kpoints_class(object):
     def __init__(self, nk = 1):
         # variable list and default values
         self.nk         = nk
-        # in future there may be a list of k-vectors (not needed now)
+        self.weight     = [2.0 / nk] * nk
+        # in future there may be a list of k-vectors and nontrivial weights (not needed now)
 
-    def set_kpool(self, para):
-        """ distribute k-points over pools """
-        pass
-        
 
 class optimal_basis_set_class(object):
     """ store information related to shirley optimal basis functions """
@@ -97,6 +104,7 @@ class optimal_basis_set_class(object):
             self.eigval = input_from_binary(fh, 'double', self.nbnd, sk_offset * self.nbnd)
         except struct.error:
             para.error('Problem converting eigval file.')
+        self.eigval = [ e * Ryd for e in self.eigval ]
         # Output a part of eigenvalues
         para.print('  ' + list2str_1d(self.eigval)) 
         self.eigval = sp.array(self.eigval)
@@ -120,7 +128,7 @@ class optimal_basis_set_class(object):
         except struct.error:
             para.error('Problem converting eigvec file.')
         # Output some major components of a part of eigenvalues near the fermi level
-        para.print(eigvec2str(self.eigvec, self.nbasis, self.nbnd, int(self.nelec / (3 - self.nspin))))
+        para.print(eigvec2str(self.eigvec, self.nbasis, self.nbnd, int(self.nelec / 2)))
         # Note that reshape works in row-major order 
         # eigvec = < B_i | nk > 
         self.eigvec = sp.matrix(self.eigvec).reshape(self.nbasis, self.nbnd)
@@ -295,7 +303,8 @@ class scf_class(object):
                 self.para.error('Problem converting xmat file.')
         # Note that the indexing in fortran is reversed
         # In shirley_xas, posn is nbnd x ncp x nxyz 3d array; xmat is the same here
-        self.xmat = self.sp.array(self.xmat).reshape(nxyz, self.ncp, self.nbnd).transpose()
+        # xmat is calculated as < nk | O | phi_h > (phi_h being the core levels)
+        self.xmat = self.sp.array(self.xmat).reshape(nxyz, self.ncp, self.nbnd).T
         
 
     def input_shirley(self, is_initial = True, isk = 0):
@@ -334,6 +343,7 @@ class scf_class(object):
                 para.error('Problem reading {0}'.format(fname))
             self.iptblk = input_arguments(lines) # store variables in iptblk
 
+            # Use the latest TMP_INPUT file
             tmp_file_list = sorted(glob.glob(path + '/' + tmp_iptblk_fname + '*'))
             if not tmp_file_list:
                 para.error('cannot find any {0} file in {1}'.format(tmp_iptblk_fname, path))
@@ -402,7 +412,7 @@ class scf_class(object):
                 # initialize k-points
                 # print(self.nspin, self.nk, userin.gamma_only) # debug
                 if userin.gamma_only: self.nk = self.nspin
-                self.kpt = kpoints_class(nk = self.nk) # do we need this ?
+                self.kpt = kpoints_class(nk = self.nk)
 
                 # Check k-grid consistency between the initial and final state *** We should move this check outside 
                 if not is_initial:
@@ -438,12 +448,14 @@ class scf_class(object):
             if f == 'eigval':
                 para.print('  Band energies: ')
                 self.obf.input_eigval(fh, para.pool.sk_offset[isk])
+                self.eigval = self.obf.eigval # *** is this awkward ?
                 para.print()
 
             # eigenvector file
             if f == 'eigvec':
                 para.print('  Obf Wavefunctions : ')
                 self.obf.input_eigvec(fh, para.pool.sk_offset[isk])
+                self.eigvec = self.obf.eigvec # *** is this awkward ?
                 para.print()
 
             # projector file
