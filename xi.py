@@ -49,8 +49,9 @@ def compute_xi(iscf, fscf):
     """
     sp      = iscf.sp
     para    = iscf.para
+    userin  = iscf.userin
 
-    if iscf.userin.scf_type == 'shirley_xas':
+    if userin.scf_type == 'shirley_xas':
 
         # The pseudo part: xi_{mn}^PS = < nk | B_j > < B_j | ~ B_i > < ~ B_i | ~mk >
         xi      = iscf.obf.eigvec.H * fscf.obf.overlap * fscf.obf.eigvec # All 3 must be sp.matrix
@@ -60,17 +61,20 @@ def compute_xi(iscf, fscf):
         proj_offset = 0
         proj = fscf.proj
 
-        do_paw_correction = True # Just a flag for turning on PAW core correction
-        if do_paw_correction:
-            for I in range(proj.natom):
-                atom_name   = proj.atomic_pos[I][0]
-                kind        = proj.ind[atom_name]
-                nprojs      = proj.nprojs[kind]
-                full_sij    = proj.full_sij[kind]
-                xi          += iscf.proj.beta_nk[proj_offset : proj_offset + nprojs, :].H \
-                            * full_sij \
-                            * fscf.proj.beta_nk[proj_offset : proj_offset + nprojs, :]
-                proj_offset += nprojs
+        if userin.do_paw_correction:
+            # loop over species first, then loop over atoms within each species
+            # just to respect the order as in Qespresso/shirley_xas
+            for s in range(proj.nspecies):
+                # para.print(proj.atomic_species[s][0]) # debug
+                nprojs      = proj.nprojs[s]
+                full_sij    = proj.full_sij[s]
+                for I in range(proj.natom):
+                    if proj.atomic_pos[I][0] == proj.atomic_species[s][0]:
+                        # para.print('I = {0}, offset = {1}'.format(I, proj_offset)) # debug
+                        xi          += iscf.proj.beta_nk[proj_offset : proj_offset + nprojs, :].H \
+                                    * full_sij \
+                                    * fscf.proj.beta_nk[proj_offset : proj_offset + nprojs, :]
+                        proj_offset += nprojs
 
         xi      = xi.transpose() # fscf.nbnd x iscf.nbnd. This is important !
 
@@ -105,7 +109,8 @@ def eig_analysis_xi(xi, sp, la):
     # Now I plot the abs of eigenvalues
     plt.stem(abs(xi_eigval))
     plt.xlim([-1, size])
-    plt.savefig('test_xi_eig.eps', format = 'eps', dpi = 1000)
+    #plt.savefig('test_xi_eig.eps', format = 'eps', dpi = 1000)
+    plt.savefig('test_xi_eig.png', format = 'png')
     plt.close()
     # Analyze eigenvalues and return a message
     msg = ''

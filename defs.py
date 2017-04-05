@@ -39,6 +39,7 @@ class user_input_class(object):
         self.gamma_only     = False
         self.final_1p       = False
         self.xi_analysis    = False
+        self.do_paw_correction = True
 
     def read(self):
         """ input from stdin or userin"""
@@ -425,7 +426,7 @@ class scf_class(object):
                     # set up pools
                     if self.nk < para.size / userin.nproc_per_pool:
                         para.print(' Too few k-points (' + str(self.nk) + ') for ' + str(int(para.size / userin.nproc_per_pool)) + ' pools.')
-                        para.print(' Increat nproc_per_pool to ' + str(int(para.size / self.nk)))
+                        para.print(' Increase nproc_per_pool to ' + str(int(para.size / self.nk)))
                         para.print()
                         userin.nproc_per_pool = int(para.size / self.nk)
 

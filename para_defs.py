@@ -148,6 +148,11 @@ class para_class(object):
         # initialize pool for k-points
         self.pool = pool_class(self)
 
+    def isroot(self):
+        """ check if this is the global root """
+        if self.rank == 0: return True
+        else: return False
+
     def print(self, msg = '', rank = 0, flush = False):
         """ print at given rank """
         if self.rank == rank:
@@ -172,4 +177,5 @@ class para_class(object):
 
     def sep_line(self):
         self.print(separation_line)
+
 

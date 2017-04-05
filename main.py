@@ -41,21 +41,21 @@ for isk in range(para.pool.nsk):
     weight =  iscf.kpt.weight[isk]; 
     para.print('weight = {0}'.format(weight))
 
-    # Import the initial-state scf calculations
+    # Import the initial-state scf calculation
     para.sep_line()
     para.print(' Import initial-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, para.pool.sk_list[isk][1]))
     iscf.input(isk = isk)
 
-    # Check the final-state scf calculations
+    # Import the final-state scf calculation
     para.sep_line()
-    para.print(' Import final-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, para.pool.sk_list[isk][1]))
+    para.print(' Import final-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, para.pool.sk_list[isk][1]), flush = True)
     fscf.input(is_initial = False, isk = isk)
 
     # Compute \xi
     xi = compute_xi(iscf, fscf)
     #para.print(xi) # debug
-    if user_input.xi_analysis and para.pool.isroot():
-        plot_xi(xi, sp) # debug
+    if user_input.xi_analysis and para.isroot() and isk == 0:
+        # plot_xi(xi, sp) # debug
         msg = eig_analysis_xi(xi, sp, la) # debug
 
     # Compute non-interacting spectra *** should I put it in a def ?
@@ -81,12 +81,20 @@ for isk in range(para.pool.nsk):
             spec0_f[:, ispin + 1] += spec0 # angular average
 
 # Output Spectra
-# mpi_sum spectrum ***
+
+# intial-state one-body
 spec0_i[:, 1 : 1 + nspin] /= 3.0
-sp.savetxt(spec0_i_fname, spec0_i, delimiter = ' ')
+if ismpi() and para.pool.isroot():
+    spec0_i[:, 1 : nspin * 4 + 1] = para.pool.rootcomm.reduce(spec0_i[:, 1 : nspin * 4 + 1], op = MPI.SUM)
+
+if para.isroot(): sp.savetxt(spec0_i_fname, spec0_i, delimiter = ' ')
+
+# final-state one-body
 if user_input.final_1p:
     spec0_f[:, 1 : 1 + nspin] /= 3.0
-    sp.savetxt(spec0_f_fname, spec0_f, delimiter = ' ')
+    if ismpi() and para.pool.isroot():
+        spec0_f[:, 1 : nspin * 4 + 1] = para.pool.rootcomm.reduce(spec0_f[:, 1 : nspin * 4 + 1], op = MPI.SUM) 
+    if para.isroot(): sp.savetxt(spec0_f_fname, spec0_f, delimiter = ' ')
 
 
 
