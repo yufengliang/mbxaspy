@@ -69,5 +69,8 @@ iscf = scf_class()
 fscf = scf_class()
 __all__ += ['iscf', 'fscf']
 
+# flush all the output
+para.print('', flush = True)
+
 if __name__ == '__main__':
     print(__file__ + ': initialization module for mbxaspy')
