@@ -112,3 +112,28 @@ def eig_analysis_xi(xi, sp, la):
     return msg
 
 
+def compute_xi_c(xi, xmat_c, nocc):
+    """
+    Compute
+        sum_c xi_{i, c} < phi_c | O | phi_h > ^ *
+    =   sum_c < phi_c | ~phi_i > < phi_h | O | phi_c >
+    =   (sum_c < ~phi_i | phi_c > < phi_c | O | phi_h >)^* 
+    for all final-state orbital i.
+
+    c sums over all EMPTY initial-state orbitals
+
+    arguments:
+    xi:     xi matrix that is already calculated
+    xmat_c: *1d* array, < phi_c | O | phi_h > for user-chosen O with c ranging from LUMO to nbnd_i
+    nocc: effective occupation number
+    """
+    xmat_c_ = xmat_c.copy()
+    if nocc % 1 > small_thr: # partial occupation
+        xmat_c_[0] *= nocc % 1
+    nbnd_i = min(xi.shape[1], len(xmat_c_))
+    xmat_c_ = sp.matrix(xmat_c_)
+    if xmat_c_.shape[1] > 1: xmat_c_ = xmat_c_.T
+    return xi[:, nocc : nbnd_i] * xmat_c_[nocc : nbnd_i, 0]
+
+    
+
