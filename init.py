@@ -69,6 +69,10 @@ iscf = scf_class()
 fscf = scf_class()
 __all__ += ['iscf', 'fscf']
 
+# graphics
+from matplotlib import pyplot as plt
+__all__ += ['plt']
+
 # flush all the output
 para.print('', flush = True)
 

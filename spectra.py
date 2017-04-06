@@ -5,17 +5,19 @@ from __future__ import print_function
 
 import sys
 import os
-
-from constants import *
-from utils import *
 import math
 from bisect import bisect_left, bisect_right
 
+from constants import *
+from utils import *
+from init import *
 
-def gaussian(x, sigma, mu, sp):
+
+# *** you don't need to use sp here ! Just import init !!!
+def gaussian(x, sigma, mu):
     return 1.0 / sigma / sp.sqrt(2 * sp.pi) * sp.exp(- 0.5 * ((x - mu) / sigma) ** 2)
 
-def gaussian_slice(x, sigma, mu, sp):
+def gaussian_slice(x, sigma, mu):
     """ 
     return a slice of x in which the gaussian is significant 
     exp(-0.5 * ((x - mu) / sigma) ** 2) < given_threshold
@@ -25,7 +27,7 @@ def gaussian_slice(x, sigma, mu, sp):
     x_hi = bisect_right(x, mu + r)
     return slice(x_lo, x_hi)
 
-def lorentzian(x, sigma, mu, sp):
+def lorentzian(x, sigma, mu):
     return 1.0 / sp.pi * 0.5 * sigma / ((x - mu) ** 2 + (0.5 * sigma) ** 2)
 
 
@@ -39,19 +41,18 @@ def stick_to_spectrum(stick, spec_info, smear_func = gaussian):
     
     Assume a uniform energy grid (which may not be ideal)
     """
-    sp = spec_info.sp
     ener_axis = sp.linspace(spec_info.ELOW, spec_info.EHIGH, spec_info.NENER + 1)
     spectrum = sp.zeros(len(ener_axis))
     for i in range(len(stick)):
         xslice = slice(0, len(ener_axis))
         # Narrow down the range if doing guassian
         if smear_func == gaussian:
-            xslice = gaussian_slice(ener_axis, spec_info.SIGMA, stick[i][0], sp)
-        spectrum[xslice] += stick[i][1] * smear_func(ener_axis[xslice], spec_info.SIGMA, stick[i][0], sp)
+            xslice = gaussian_slice(ener_axis, spec_info.SIGMA, stick[i][0])
+        spectrum[xslice] += stick[i][1] * smear_func(ener_axis[xslice], spec_info.SIGMA, stick[i][0])
     return ener_axis, spectrum
 
 
-def eff_nelec(nelec, nspin, ispin):
+def eff_nocc(nelec, nspin, ispin):
     """ 
     Find the number of effective electrons to indicate the Fermi level
 
@@ -67,22 +68,21 @@ def eff_nelec(nelec, nspin, ispin):
         return nelec / 2 + ispin * (nelec % 2)
 
 
-def spectrum0(scf, ixyz, eff_nelec = 0, smearing = 'gauss'):
+def spectrum0(scf, ixyz, nocc = 0, smearing = 'gauss'):
     """
     Convert the xmat of scf into a non-interacting spectrum
     """
-    sp = scf.sp
     # *** multiple core levels unsupported now (ncp > 1)
-    empty = slice(int(eff_nelec), scf.nbnd)
-    size = scf.nbnd - int(eff_nelec)
+    empty = slice(int(nocc), scf.nbnd)
+    size = scf.nbnd - int(nocc)
     # print(empty, size, scf.eigval[empty].shape, scf.xmat.shape) # debug
     # stick: energy v.s. intensity
     stick = sp.concatenate((scf.eigval[empty].reshape(size, 1), 
             (abs(scf.xmat[empty, 0, ixyz]) ** 2).reshape(size, 1)),
             axis = 1)
     # partial occupancy of LUMO
-    if eff_nelec % 1 > small_thr:
-        stick[0, 1] *= eff_nelec % 1 # adjust intensity
+    if nocc % 1 > small_thr:
+        stick[0, 1] *= nocc % 1 # adjust intensity
     smear_func = gaussian
     if smearing == 'lor': smear_func = lorentzian
     return stick_to_spectrum(stick, scf.userin, smear_func)

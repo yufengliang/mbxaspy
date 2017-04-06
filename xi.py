@@ -8,6 +8,7 @@ import os
 
 from constants import *
 from utils import *
+from init import *
 
 
 def compute_full_sij(fproj):
@@ -18,7 +19,6 @@ def compute_full_sij(fproj):
     ground-state atom: sij is just qij
     excited sij stored under proj of fscf
     """
-    sp = fproj.sp
     fproj.full_sij = []
     for kind in range(fproj.nspecies):
         full_sij = sp.matrix(sp.zeros([fproj.nprojs[kind], fproj.nprojs[kind]]))
@@ -47,9 +47,7 @@ def compute_xi(iscf, fscf):
     """ 
     compute the xi matrix using two given scfs
     """
-    sp      = iscf.sp
-    para    = iscf.para
-    userin  = iscf.userin
+    userin  = user_input
 
     if userin.scf_type == 'shirley_xas':
 
@@ -82,21 +80,20 @@ def compute_xi(iscf, fscf):
 
     return None
 
-def plot_xi(xi, sp):
+def plot_xi(xi):
     """
     plot a heap map for a complex matrix xi
     Take the abs of each element and plot
     
     sp: scipy or numpy
     """
-    from matplotlib import pyplot as plt # This import is temporarily here ***
     heatmap = plt.pcolor(abs(sp.array(xi)), cmap = 'seismic')
     plt.axis([0, xi.shape[1], 0, xi.shape[0]])
     plt.axes().set_aspect('equal')
     plt.savefig('test_xi.eps', format = 'eps', dpi = 1000)
     plt.close()
 
-def eig_analysis_xi(xi, sp, la):
+def eig_analysis_xi(xi):
     """
     Analyze the eigenvalues of the transformation matrix xi
 
@@ -105,7 +102,6 @@ def eig_analysis_xi(xi, sp, la):
     """
     size = min(xi.shape)
     xi_eigval, xi_eigvec = la.eig(xi[0 : size, 0 : size])
-    from matplotlib import pyplot as plt # This import is temporarily here ***
     # Now I plot the abs of eigenvalues
     plt.stem(abs(xi_eigval))
     plt.xlim([-1, size])
@@ -135,6 +131,7 @@ def compute_xi_c(xi, xmat_c, nocc):
     xmat_c_ = xmat_c.copy()
     if nocc % 1 > small_thr: # partial occupation
         xmat_c_[0] *= nocc % 1
+    nocc = int(nocc)
     nbnd_i = min(xi.shape[1], len(xmat_c_))
     xmat_c_ = sp.matrix(xmat_c_)
     if xmat_c_.shape[1] > 1: xmat_c_ = xmat_c_.T

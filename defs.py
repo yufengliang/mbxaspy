@@ -36,10 +36,11 @@ class user_input_class(object):
         self.smearing       = 'gauss'   # gauss or lor (lorentzian)
 
         # control flags
-        self.gamma_only     = False
-        self.final_1p       = False
-        self.xi_analysis    = False
-        self.do_paw_correction = True
+        self.gamma_only     = False         # Using Gamma-point only
+        self.final_1p       = False         # Calculate one-body final-state spectra
+        self.xi_analysis    = False         # perform full analysis on xi 
+        self.do_paw_correction = True       # perform PAW corrections
+        self.spec0_only     = False         # Calculate one-body / non-interacing spectra only
 
     def read(self):
         """ input from stdin or userin"""

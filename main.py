@@ -51,17 +51,13 @@ for isk in range(para.pool.nsk):
     para.print(' Import final-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, para.pool.sk_list[isk][1]), flush = True)
     fscf.input(is_initial = False, isk = isk)
 
-    # Compute \xi
-    xi = compute_xi(iscf, fscf)
-    #para.print(xi) # debug
-    if user_input.xi_analysis and para.isroot() and isk == 0:
-        # plot_xi(xi, sp) # debug
-        msg = eig_analysis_xi(xi, sp, la) # debug
+    # Obtain the effective occupation number: respect the initial-state #electrons
+    nocc = eff_nocc(iscf.nelec, nspin, ispin)
 
     # Compute non-interacting spectra *** should I put it in a def ?
     for ixyz in range(3):
         # *** currently only x, y, z
-        ener_axis, spec0 = spectrum0(iscf, ixyz, eff_nelec(iscf.nelec, nspin, ispin), user_input.smearing)
+        ener_axis, spec0 = spectrum0(iscf, ixyz, nocc, user_input.smearing)
         ener_axis += user_input.ESHIFT_FINAL
         # print(ener_axis.shape, spec0.shape) # debug
         if isk == 0 and ixyz == 0:
@@ -75,10 +71,25 @@ for isk in range(para.pool.nsk):
         spec0_i[:, ispin + 1] += spec0 # angular average
         if user_input.final_1p:
             ener_axis, spec0 \
-            = spectrum0(fscf, ixyz, eff_nelec(iscf.nelec, nspin, ispin), user_input.smearing) # yes, electron number from iscf
+            = spectrum0(fscf, ixyz, nocc, user_input.smearing)
             spec0 *= weight
             spec0_f[:, col_offset] += spec0
             spec0_f[:, ispin + 1] += spec0 # angular average
+
+    if not user_input.spec0_only:
+
+        # Compute the transformation matrix xi
+        xi = compute_xi(iscf, fscf)
+
+        #para.print(xi) # debug
+        if user_input.xi_analysis and para.isroot() and isk == 0:
+            # plot_xi(xi) # debug
+            msg = eig_analysis_xi(xi) # debug
+
+        for ixyz in range(3):
+            # Compute xi_c
+            xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc)
+            # para.print('xi_c.shape = {0}'.format(str(xi_c.shape))) # debug
 
 # Output Spectra
 
