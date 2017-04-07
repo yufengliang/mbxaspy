@@ -62,17 +62,16 @@ def compute_xi(iscf, fscf):
         if userin.do_paw_correction:
             # loop over species first, then loop over atoms within each species
             # just to respect the order as in Qespresso/shirley_xas
-            for s in range(proj.nspecies):
-                # para.print(proj.atomic_species[s][0]) # debug
+            for I in range(proj.natom):
+                atom_name   = proj.atomic_pos[I][0]
+                s           = proj.ind[atom_name]
                 nprojs      = proj.nprojs[s]
                 full_sij    = proj.full_sij[s]
-                for I in range(proj.natom):
-                    if proj.atomic_pos[I][0] == proj.atomic_species[s][0]:
-                        # para.print('I = {0}, offset = {1}'.format(I, proj_offset)) # debug
-                        xi          += iscf.proj.beta_nk[proj_offset : proj_offset + nprojs, :].H \
-                                    * full_sij \
-                                    * fscf.proj.beta_nk[proj_offset : proj_offset + nprojs, :]
-                        proj_offset += nprojs
+                proj_range  = slice(proj_offset, proj_offset + nprojs)
+                xi          += iscf.proj.beta_nk[proj_range, :].H \
+                            * full_sij \
+                            * fscf.proj.beta_nk[proj_range, :]
+                proj_offset += nprojs
 
         xi      = xi.transpose() # fscf.nbnd x iscf.nbnd. This is important !
 
@@ -93,7 +92,7 @@ def plot_xi(xi):
     plt.savefig('test_xi.eps', format = 'eps', dpi = 1000)
     plt.close()
 
-def eig_analysis_xi(xi):
+def eig_analysis_xi(xi, postfix = ''):
     """
     Analyze the eigenvalues of the transformation matrix xi
 
@@ -103,11 +102,13 @@ def eig_analysis_xi(xi):
     size = min(xi.shape)
     xi_eigval, xi_eigvec = la.eig(xi[0 : size, 0 : size])
     # Now I plot the abs of eigenvalues
-    plt.stem(abs(xi_eigval))
+    out_eigval = sorted(abs(xi_eigval), reverse = True)
+    plt.stem(out_eigval)
     plt.xlim([-1, size])
     #plt.savefig('test_xi_eig.eps', format = 'eps', dpi = 1000)
-    plt.savefig('test_xi_eig.png', format = 'png')
+    plt.savefig('test_xi_eig{0}.png'.format(postfix), format = 'png')
     plt.close()
+    sp.savetxt('test_xi_eig{0}.dat'.format(postfix), out_eigval, delimiter = ' ')
     # Analyze eigenvalues and return a message
     msg = ''
     return msg

@@ -36,19 +36,19 @@ nspin = iscf.nspin
 # loop over spin and kpoints
 for isk in range(para.pool.nsk):
 
-    ispin = para.pool.sk_list[isk][0] # acquire current spin
+    ispin, ik  = para.pool.sk_list[isk] # acquire current spin
     # weight the sticks according to the k-grid
     weight =  iscf.kpt.weight[isk]; 
-    para.print('weight = {0}'.format(weight))
+    # para.print('weight = {0}'.format(weight)) # debug
 
     # Import the initial-state scf calculation
     para.sep_line()
-    para.print(' Import initial-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, para.pool.sk_list[isk][1]))
+    para.print(' Import initial-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, ik))
     iscf.input(isk = isk)
 
     # Import the final-state scf calculation
     para.sep_line()
-    para.print(' Import final-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, para.pool.sk_list[isk][1]), flush = True)
+    para.print(' Import final-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, ik), flush = True)
     fscf.input(is_initial = False, isk = isk)
 
     # Obtain the effective occupation number: respect the initial-state #electrons
@@ -82,9 +82,12 @@ for isk in range(para.pool.nsk):
         xi = compute_xi(iscf, fscf)
 
         #para.print(xi) # debug
-        if user_input.xi_analysis and para.isroot() and isk == 0:
+        if user_input.xi_analysis and para.isroot() and ik == 0:
             # plot_xi(xi) # debug
-            msg = eig_analysis_xi(xi) # debug
+            if nspin > 1:
+                msg = eig_analysis_xi(xi, '_spin_{0}'.format(ispin)) # debug
+            else:
+                msg = eig_analysis_xi(xi) # debug
 
         for ixyz in range(3):
             # Compute xi_c
