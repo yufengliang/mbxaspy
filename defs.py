@@ -35,10 +35,13 @@ class user_input_class(object):
         self.SIGMA          = 0.2       # eV
         self.smearing       = 'gauss'   # gauss or lor (lorentzian)
 
+        self.maxfn          = 2         # final-state shakeup order
+        
         # control flags
         self.gamma_only     = False         # Using Gamma-point only
         self.final_1p       = False         # Calculate one-body final-state spectra
-        self.xi_analysis    = False         # perform full analysis on xi 
+        self.xi_analysis    = False         # perform full analysis on the xi matrix
+        self.zeta_analysis  = False         # perform full analysis on the zeta matrix
         self.do_paw_correction = True       # perform PAW corrections
         self.spec0_only     = False         # Calculate one-body / non-interacing spectra only
 

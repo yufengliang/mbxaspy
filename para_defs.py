@@ -32,10 +32,20 @@ class pool_class(object):
         nproc_per_pool  = 3     # least number of processors per pool
         10 / 3 = 3 pools
 
+        Remainder Mode:
+
         pool    size    proc
            0       4    0, 3, 6, 9   
            1       3    1, 4, 7
            2       3    2, 5, 8
+
+        Contiguous Mode (to be developed *** ):
+
+        pool    size    proc
+           0       4    0, 1, 2, 3   
+           1       3    4, 5, 6
+           2       3    7, 8, 9
+
         """
         para = self.para
         comm = para.comm

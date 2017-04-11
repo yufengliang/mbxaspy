@@ -51,7 +51,13 @@ def stick_to_spectrum(stick, spec_info, smear_func = gaussian):
         spectrum[xslice] += stick[i][1] * smear_func(ener_axis[xslice], spec_info.SIGMA, stick[i][0])
     return ener_axis, spectrum
 
-
+def Af_to_stick(Af):
+    """
+    Given the final-state amplitudy Af, return a stick list
+    Af: a dictionary of array([energy, amplitude])
+    """
+    return [ [Af[conf][0].real, float(abs(Af[conf][1]) ** 2)] for conf in Af]
+    
 def eff_nocc(nelec, nspin, ispin):
     """ 
     Find the number of effective electrons to indicate the Fermi level
