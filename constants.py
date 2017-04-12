@@ -20,8 +20,14 @@ nxyz = 9
 small_thr = 1e-8
 zero_thr = 1e-16
 
-# separation line *** you can use [=] * length
-separation_line = "===================================================================================================="
+# separation line
+main_sepl = '=' * 90
+second_sepl = '-' * 90
+
+# constants related to spectra
+ms_const, ns_const      = 30, 6     # define the corner of the zeta matrix for printing
+det_thr_print           = 0.3       # % threshold for printing out determinants  
+det_thr_label           = 0.8       # % threshold for labeling determinants  
 
 # physics constants
 Ryd = 13.605698065894

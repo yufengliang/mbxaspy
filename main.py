@@ -52,7 +52,7 @@ for isk in range(para.pool.nsk):
     iscf.input(isk = isk)
 
     # Import the final-state scf calculation
-    para.sep_line()
+    para.sep_line(second_sepl)
     para.print(' Import final-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, ik), flush = True)
     fscf.input(is_initial = False, isk = isk)
 
@@ -97,6 +97,7 @@ for isk in range(para.pool.nsk):
                 msg = eig_analysis_xi(xi) # debug
 
         ## XPS spectra (N X N)
+        para.sep_line(second_sepl)
         para.print('  Calculating many-body XPS spectra ... ')
 
         Af_list, msg = quick_det(xi[:, 0 : int(nocc)], ener = fscf.obf.eigval,
@@ -119,7 +120,10 @@ for isk in range(para.pool.nsk):
 
             spec_xps_[:, 1] += spec
 
+        para.print()
+
         ## XAS spectra ( (N + 1) x (N + 1) )
+        para.sep_line(second_sepl)
         para.print('  Calculating many-body XAS spectra ... ')
 
         first = True
@@ -149,7 +153,7 @@ for isk in range(para.pool.nsk):
 
                 # important information for understanding shakeup effects and convergence 
                 para.print("order {0:>2}: no. of sticks = {1:>7}, max stick = {2} ".
-                            format( order, len(stick), max([s[1] for s in stick] + [0.0]) ))
+                            format( order + 1, len(stick), max([s[1] for s in stick] + [0.0]) ))
 
                 ener_axis += user_input.ESHIFT_FINAL + fscf.obf.eigval[int(nocc)]
 
@@ -159,7 +163,9 @@ for isk in range(para.pool.nsk):
                     first = False
 
                 spec_xas_[:, col] += spec
-        # ixyz
+
+            para.print()
+        # end of ixyz
 
         spec_xas_[:, 1] = spec_xas_[:, 2] + spec_xas_[:, 3] + spec_xas_[:, 4]
 
@@ -178,8 +184,8 @@ for isk in range(para.pool.nsk):
         sp.savetxt(spec_xas_fname + postfix, spec_xas_, delimiter = ' ')
         spec_xas.append(spec_xas_)
 
-    # spec0_only
-# isk
+    # end if spec0_only
+# end of isk
 
 # Output Spectra
 

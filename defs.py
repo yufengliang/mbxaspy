@@ -452,7 +452,7 @@ class scf_class(object):
 
             # eigenvalue file
             if f == 'eigval':
-                para.print('  Band energies: ')
+                para.print('  Band energies (eV): ')
                 self.obf.input_eigval(fh, para.pool.sk_offset[isk])
                 self.eigval = self.obf.eigval # *** is this awkward ?
                 para.print()

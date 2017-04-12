@@ -185,7 +185,7 @@ class para_class(object):
         self.print('Error: ' + msg + '\nHalt.', flush = True)
         self.stop()
 
-    def sep_line(self):
-        self.print(separation_line)
+    def sep_line(self, sep = main_sepl):
+        self.print(sep)
 
 

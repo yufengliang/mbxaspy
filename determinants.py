@@ -12,8 +12,9 @@ from utils import *
 from init import *
 
 
-def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-7, maxfn = 2, 
+def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2, 
               e_lo_thr = -2.0, e_hi_thr = 8.0,
+              det_scaling_fac = 1.0, 
               comm = None,
               zeta_analysis = False):
     """
@@ -56,7 +57,7 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-7, maxfn = 2,
     ## Calculate the mother determinant: topmost n x n minor
 
     det_mom = la.det(xi_mat[0 : n, :])
-    para.print('det_mom = {0}'.format(det_mom)) # debug
+    para.print('det_mom = {0}\n'.format(det_mom)) # debug
     xi_mat_tmp = xi_mat[0 : n, :]
 
     """
@@ -82,42 +83,17 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-7, maxfn = 2,
     # para.print(zeta_mat) # debug
 
     # print out a corner of zeta_mat
-    ms, ns = min(50, m), min(7, n)
+    ms, ns = min(ms_const, m), min(ns_const, n)
     para.print('| zeta matrix | (left-upper corner): ')
+    para.print('{0:5}'.format('') + ' '.join(['{0:>12}'.format(_) for _ in range(n - ns, n)]))
     for im in range(ms):
         para.print('{0:5}'.format(im) + ' '.join(['{0:>12.3e}'.format(abs(_)) for _ in sp.array(zeta_mat[im, n - ns : n])[0]]))
+    para.print()
     
     ## Check the sparsity of the zeta-matrix
     
     if zeta_analysis:
         plot_zeta(zeta_mat)
-
-    max_zeta = abs(zeta_mat).max()
-    para.print('max_zeta = {0}'.format(max_zeta))
-    # I_thr -- filter out transitions below a certain percentage of the strongest one
-    sparse_thr = sp.sqrt(abs(I_thr)) * max_zeta 
-
-    """
-    Find out major matrix elements of the zeta matrix.
-    Record the coordinates and values of all significant matrix elements
-    in such an order
-    0 0 4 0 1 
-    0 6 5 3 2
-    0 7 0 0 0
-    which means we need to flip our zeta_mat from left to right, and then tranpose it:
-    1 2 0
-    0 3 0
-    4 5 0
-    0 6 7
-    0 0 0
-    """
-    zeta_coord = sp.where(abs(sp.fliplr(zeta_mat).T) > sparse_thr)
-    zeta_coord = zip(zeta_coord[0], zeta_coord[1])
-
-    # Now convert the coordinates back
-    # i = j', j = n - 1 - i'
-    zeta_coord = [(j, n - 1 - i) for i, j in zeta_coord]
-    print(zeta_coord)
 
     """
     Carry out a breath-first search for nontrivial determinants.
@@ -138,10 +114,16 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-7, maxfn = 2,
     Af = {}
     max_conf = ''
     Af[max_conf] = sp.array([0.0, det_mom]) # This is considered as the f^(0) configuration
-    if not fix_v1: Af_list.append(Af) # if doing xps, then count f^(0); *** wait, are you double counting sth. ?
+    if not fix_v1: Af_list.append(Af) # if doing xps, then count f^(0); Wait, are you double counting sth. ? No, you won't.
 
-    # determinant theshold 
-    det_thr = sp.sqrt(abs(I_thr)) * max_zeta * abs(det_mom)
+    # estimate the overall determinant theshold according to the maximum of the lowest-order contribution
+    max_zeta = abs(zeta_mat[:, n - 1]).max() if fix_v1 else abs(zeta_mat).max()
+    para.print('max_zeta = {0}'.format(max_zeta))
+    f_lowest_max = max_zeta * abs(det_mom)
+    para.print('filter out transitions with intensity < {0:>6.3}% of the maximal intensity {1}'.format(I_thr * 100, abs(f_lowest_max) ** 2))
+    det_thr = abs(I_thr) * f_lowest_max # you should not take the square root of I_thr because | dI / I | ~ | 2 dA / A |
+    para.print('determinant threshold = {0}'.format(det_thr))
+    para.print()
 
     # parallelism
     if comm:
@@ -151,13 +133,40 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-7, maxfn = 2,
 
     for ndepth in range(1, maxfn + 1):
 
-        ## estimate the maximum of the amplitude of determinants of ndepth
+        """
+        Find out major matrix elements of the zeta matrix.
+        Record the coordinates and values of all significant matrix elements
+        in such an order
+        0 0 4 0 1 
+        0 6 5 3 2
+        0 7 0 0 0
+        which means we need to flip our zeta_mat from left to right, and then tranpose it:
+        1 2 0
+        0 3 0
+        4 5 0
+        0 6 7
+        0 0 0
+        """
 
-        # find out the previous max:
-        conf_ = [int(_) for _ in max_conf.split()]
-        conf_v = conf_[int(fix_v1) :: 2]
-        if fix_v1 and ndepth > 1: conf_v = [n - 1] + conf_v
-        conf_c = conf_[1 - int(fix_v1) :: 2]
+        # estimate sparse threshold 'sparse_thr' dynamically according to previous max Af
+        if len(Af) == 0 or abs(Af[max_conf][1]) < zero_thr:
+            Af = {}
+            Af_list.append(Af)
+            para.print('f^({0}) contributions: '.format(ndepth))
+            para.print('None')
+            continue
+
+        sparse_thr = det_thr / abs(Af[max_conf][1])
+
+        zeta_coord = sp.where(abs(sp.fliplr(zeta_mat).T) > sparse_thr)
+        zeta_coord = zip(zeta_coord[0], zeta_coord[1])
+
+        # Now convert the coordinates back
+        # i = j', j = n - 1 - i'
+        zeta_coord = [(j, n - 1 - i) for i, j in zeta_coord]
+
+        # para.print(zeta_coord) # debug
+        para.print('No. of signiciant matrix elements of zeta: {0}'.format(len(zeta_coord)))
         
 	# Record Af from all possible final-state indices f
 	# 'If' is an array of dictionaries (len = nspin)
@@ -168,7 +177,7 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-7, maxfn = 2,
         that satisfies:
         v1 > v2 > v3 > ..., and c1 < c2 < c3 < ...
 
-	When fix_v1 = True, v1 = n and is omitted from conf.
+	When fix_v1 = True, v1 is defaulted to (n - 1) and is omitted from conf.
         
         fix_v1 = True,      for XAS / XES
                  False,     for XPS
@@ -272,7 +281,8 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-7, maxfn = 2,
         # reduce det_thr by a factor of the number of orbitals
         # The reason we reduce det_thr is because there are more states in higher-order f^(n)
         # We may need to lower the threshold in case they may form a background of weak transitions 
-        det_thr /= m
+        # use this with cautions
+        det_thr *= det_scaling_fac
 
         if comm:
             # Gather and combine Af_new
@@ -298,22 +308,28 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-7, maxfn = 2,
         if comm:
             Af = comm.bcast(Af, root = 0)
 
-        # debug
-        first = True
-        para.print('f^({0}) contributions: '.format(ndepth))
-        for conf in Af:
-            conf_ = ' '.join(['{0:>5}'.format(_) for _ in conf.split()])
-            if first:
-                para.print(' ' * (len(conf_) + 2) + '{0:>8}  {1:>12}'.format('energy', 'amplitude'))
-                first = False
-            para.print('{0}: {1:>8.4}  {2:>12.5e}'.format(conf_, abs(Af[conf][0]), abs(Af[conf][1]))) # debug
-
         # Find out the max amplitude
         try:
             max_conf = max(Af, key = lambda conf : abs(Af[conf][1]))
-            para.print('max_conf: {0}, amp = {1}'.format(max_conf, abs(Af[max_conf][1])))
         except ValueError:
-            pass
+            max_conf = None
+
+        # print out major distributions
+        if max_conf:
+            para.print('f^({0}) major contributions: '.format(ndepth))
+            first = True
+            for conf in Af:
+                conf_ = ' '.join(['{0:>5}'.format(_) for _ in conf.split()])
+                if first:
+                    para.print(' ' * (len(conf_) + 2) + '{0:>12}  {1:>12}'.format('energy (eV)', 'amplitude'))
+                    first = False
+                if abs(Af[conf][1]) > abs(Af[max_conf][1] * det_thr_print):
+                    label = ''
+                    if abs(Af[conf][1]) > abs(Af[max_conf][1] * det_thr_label): label = '*'
+                    para.print('{0}: {1:>12.5}  {2:>12.5e} {3}'.format(conf_, abs(Af[conf][0]), abs(Af[conf][1]), label))
+
+        para.print('max_conf: {0}, amp = {1}'.format(max_conf, abs(Af[max_conf][1])))
+        para.print()
 
         Af_list.append(Af)
     # end for ndepth
