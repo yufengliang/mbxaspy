@@ -12,7 +12,7 @@ from utils import *
 from init import *
 
 
-def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 0.0001, maxfn = 2, 
+def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-7, maxfn = 2, 
               e_lo_thr = -2.0, e_hi_thr = 8.0,
               comm = None,
               zeta_analysis = False):
@@ -76,16 +76,24 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 0.0001, maxfn = 2,
     # Construct the zeta-matrix
     xi_mat_inv = la.inv(xi_mat_tmp)
 
-    # Now the zeta matrix !
+    ## Now the zeta matrix !
     zeta_mat = sp.matrix(xi_mat[n - 1 : m, :]) * sp.matrix(xi_mat_inv)
-    para.print(zeta_mat) # debug
 
+    # para.print(zeta_mat) # debug
+
+    # print out a corner of zeta_mat
+    ms, ns = min(50, m), min(7, n)
+    para.print('| zeta matrix | (left-upper corner): ')
+    for im in range(ms):
+        para.print('{0:5}'.format(im) + ' '.join(['{0:>12.3e}'.format(abs(_)) for _ in sp.array(zeta_mat[im, n - ns : n])[0]]))
+    
     ## Check the sparsity of the zeta-matrix
     
     if zeta_analysis:
         plot_zeta(zeta_mat)
 
     max_zeta = abs(zeta_mat).max()
+    para.print('max_zeta = {0}'.format(max_zeta))
     # I_thr -- filter out transitions below a certain percentage of the strongest one
     sparse_thr = sp.sqrt(abs(I_thr)) * max_zeta 
 
@@ -128,10 +136,12 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 0.0001, maxfn = 2,
     # {'(v1) c1 v2 c2 v3 c3...': [energy, amplitude/intensity]}
 
     Af = {}
-    Af[' '] = sp.array([0.0, det_mom]) # This is considered as the f^(0) configuration
+    max_conf = ''
+    Af[max_conf] = sp.array([0.0, det_mom]) # This is considered as the f^(0) configuration
+    if not fix_v1: Af_list.append(Af) # if doing xps, then count f^(0); *** wait, are you double counting sth. ?
 
     # determinant theshold 
-    det_thr = sp.sqrt(abs(I_thr))
+    det_thr = sp.sqrt(abs(I_thr)) * max_zeta * abs(det_mom)
 
     # parallelism
     if comm:
@@ -141,60 +151,68 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 0.0001, maxfn = 2,
 
     for ndepth in range(1, maxfn + 1):
 
+        ## estimate the maximum of the amplitude of determinants of ndepth
+
+        # find out the previous max:
+        conf_ = [int(_) for _ in max_conf.split()]
+        conf_v = conf_[int(fix_v1) :: 2]
+        if fix_v1 and ndepth > 1: conf_v = [n - 1] + conf_v
+        conf_c = conf_[1 - int(fix_v1) :: 2]
+        
 	# Record Af from all possible final-state indices f
 	# 'If' is an array of dictionaries (len = nspin)
 	Af_new = {}
 		
 	"""
-	The index of a configuration: f_config = '(v1) c1 v2 c2 v3 c3 ...'
+	The index of a configuration: conf = '(v1) c1 v2 c2 v3 c3 ...'
         that satisfies:
         v1 > v2 > v3 > ..., and c1 < c2 < c3 < ...
 
-	When fix_v1 = True, v1 = n and is omitted from f_config.
+	When fix_v1 = True, v1 = n and is omitted from conf.
         
         fix_v1 = True,      for XAS / XES
                  False,     for XPS
         """
 
-        for f_config in Af:
+        for conf in Af:
 
             # Basic information of the parent configuration
 
-            # para.print(f_config)
+            # para.print(conf)
 				
-            f_config_ = [int(_) for _ in f_config.split()]
+            conf_ = [int(_) for _ in conf.split()]
 
             # indices of occupied (v) states
-            f_config_v = f_config_[int(fix_v1) :: 2]
+            conf_v = conf_[int(fix_v1) :: 2]
             # the minimum of the chosen v states
-            if fix_v1 and ndepth > 1 : f_config_minv = min(f_config_v + [n - 1])
-            else: f_config_minv = min(f_config_v + [n])
-            # indices of empty (c) states ; f_config_c is guaranteed to be sorted
-            f_config_c = f_config_[1 - int(fix_v1) :: 2]
-	    f_config_c_set = set(f_config_c)
+            if fix_v1 and ndepth > 1 : conf_minv = min(conf_v + [n - 1])
+            else: conf_minv = min(conf_v + [n])
+            # indices of empty (c) states ; conf_c is guaranteed to be sorted
+            conf_c = conf_[1 - int(fix_v1) :: 2]
+	    conf_c_set = set(conf_c)
 
             # energy of the parent configuration
-            f_ener = Af[f_config][0]
+            f_ener = Af[conf][0]
 
             ## peform the breath-first search in descending column order
 
             # Make sure it is in descending column order
-            low_izeta = bisect.bisect_left([-j for i, j in zeta_coord], -(f_config_minv - 1))
+            low_izeta = bisect.bisect_left([-j for i, j in zeta_coord], -(conf_minv - 1))
 
             # Loop over all nontrivial matrix elements of zeta
             # Distribute over the given communicator comm
-            # *** You may also consider distribute f_config
+            # *** You may also consider distribute conf
             for izeta in range(low_izeta + rank, len(zeta_coord), size):
 
                 # zeta_coord[0] = 0 corresponds to c = n - 1
                 new_c, new_v = zeta_coord[izeta]
                 new_c += n - 1
 
-		# ndepth = 1 is special
+		# ndepth = 1 is special when fix_v1 = True
 		if ndepth == 1 and fix_v1 and new_v < n - 1: break
 
 		# Make sure c doesn't appear twice in a configuration
-		if new_c in f_config_c_set: continue
+		if new_c in conf_c_set: continue
 
 		# Energy filter
 	
@@ -203,7 +221,6 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 0.0001, maxfn = 2,
 
 		enew = ener[new_c] - ener[new_v] + f_ener
 		if enew > e_hi_thr: continue
-                print('izeta = ', izeta)
 
                 """
                 Find out the sign for the child configuration
@@ -224,38 +241,33 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 0.0001, maxfn = 2,
                 
                 """
 
-                insert_pos =  bisect.bisect_left(f_config_c, new_c) # f_config_c is sorted
+                insert_pos =  bisect.bisect_left(conf_c, new_c) # conf_c is sorted
                 v_sgn = (-1) ** insert_pos
 
                 ## Construct the new configuration
                 
                 # add new_c and new_v
-                f_config_new = ''
-                if not fix_v1 and ndepth == 1: f_config_new += str(new_v) + ' '
-                for idepth in range(ndepth):
-                    # add c_{idepth} and insert new_c
-                    if insert_pos == idepth: f_config_new += str(new_c)
-                    else: f_config_new += str(f_config_c[idepth - int(idepth > insert_pos)])
-                    f_config_new += ' '
-                    # add v_{idepth}
-                    if idepth < ndepth - 2: f_config_new += str(f_config_v[idepth])
-                    elif idepth == ndepth - 2: f_config_new += str(new_v)
-                    f_config_new += ' '
+                conf_c_ = conf_c[slice(0, insert_pos)] + [new_c] + conf_c[slice(insert_pos, ndepth - 1)]
+                conf_v_ = list(conf_v)
+                if not fix_v1 or ndepth > 1: conf_v_ += [new_v]
+                conf_new = [None] * (2 * ndepth - int(fix_v1))
+                conf_new[1 - int(fix_v1) :: 2] = conf_c_
+                conf_new[int(fix_v1) :: 2] = conf_v_
+                conf_new = ' '.join([str(_) for _ in conf_new])
 
                 ## Calculate the determinantal contribution to the child configuration
-                new_contribution = v_sgn * Af[f_config][1] * zeta_mat[zeta_coord[izeta]]
+                new_contribution = v_sgn * Af[conf][1] * zeta_mat[zeta_coord[izeta]]
 
-                para.print('{0}: {1}'.format(f_config_new, new_contribution)) # debug
                 # Too small ? throw it away !
                 if abs(new_contribution) < det_thr: continue
                 
                 # Check if this configuration already exists
-                if f_config_new in Af_new:
-                    Af_new[f_config_new][1] += new_contribution
+                if conf_new in Af_new:
+                    Af_new[conf_new][1] += new_contribution
                 else:
-                    Af_new[f_config_new] = sp.array([enew, new_contribution])
+                    Af_new[conf_new] = sp.array([enew, new_contribution])
             # end for izeta
-        # end for f_config
+        # end for conf
 
         # reduce det_thr by a factor of the number of orbitals
         # The reason we reduce det_thr is because there are more states in higher-order f^(n)
@@ -280,10 +292,28 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 0.0001, maxfn = 2,
             del Af_new
 
         # Filter out the small terms in Af
+        # *** In future, do this when combine Af
         Af = {conf : Af[conf] for conf in Af if abs(Af[conf][1]) > det_thr}
 
         if comm:
             Af = comm.bcast(Af, root = 0)
+
+        # debug
+        first = True
+        para.print('f^({0}) contributions: '.format(ndepth))
+        for conf in Af:
+            conf_ = ' '.join(['{0:>5}'.format(_) for _ in conf.split()])
+            if first:
+                para.print(' ' * (len(conf_) + 2) + '{0:>8}  {1:>12}'.format('energy', 'amplitude'))
+                first = False
+            para.print('{0}: {1:>8.4}  {2:>12.5e}'.format(conf_, abs(Af[conf][0]), abs(Af[conf][1]))) # debug
+
+        # Find out the max amplitude
+        try:
+            max_conf = max(Af, key = lambda conf : abs(Af[conf][1]))
+            para.print('max_conf: {0}, amp = {1}'.format(max_conf, abs(Af[max_conf][1])))
+        except ValueError:
+            pass
 
         Af_list.append(Af)
     # end for ndepth

@@ -36,6 +36,7 @@ class user_input_class(object):
         self.smearing       = 'gauss'   # gauss or lor (lorentzian)
 
         self.maxfn          = 2         # final-state shakeup order
+        self.I_thr          = 1e-6      # intensity cutoff
         
         # control flags
         self.gamma_only     = False         # Using Gamma-point only
