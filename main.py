@@ -24,6 +24,10 @@ para.sep_line()
 para.print(' Checking final-state scf from: \n ' + user_input.path_f + '\n')
 fscf.input(is_initial = False, isk = -1)
 
+# Important: Need to tell iscf the index of core
+if user_input.scf_type == 'shirley_xas':
+    iscf.proj.icore = fscf.proj.icore
+
 # Input < B_i | \tilde{B}_j >
 fscf.obf.input_overlap(user_input.path_f, iscf.nbnd, fscf.nbnd)
 
