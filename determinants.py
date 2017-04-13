@@ -60,6 +60,9 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
     para.print('det_mom = {0}\n'.format(det_mom)) # debug
     xi_mat_tmp = xi_mat[0 : n, :]
 
+    if not fix_v1: # if doing xps then, then add the f^(0) term
+        Af_list.append({'' : sp.array([0.0, det_mom])})
+
     """
     If the mother determinant is too small, then replace the last row vector.
     A small mother determinant may be caused by a weak first transition. The
@@ -114,7 +117,6 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
     Af = {}
     max_conf = ''
     Af[max_conf] = sp.array([0.0, det_mom]) # This is considered as the f^(0) configuration
-    if not fix_v1: Af_list.append(Af) # if doing xps, then count f^(0); Wait, are you double counting sth. ? No, you won't.
 
     # estimate the overall determinant theshold according to the maximum of the lowest-order contribution
     max_zeta = abs(zeta_mat[:, n - 1]).max() if fix_v1 else abs(zeta_mat).max()
@@ -303,7 +305,13 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
 
         # Filter out the small terms in Af
         # *** In future, do this when combine Af
-        Af = {conf : Af[conf] for conf in Af if abs(Af[conf][1]) > det_thr}
+        if rank == 0:
+            Af = {conf : Af[conf] for conf in Af if abs(Af[conf][1]) > det_thr}
+
+        # This is important: avoid double-counting the f^(0) term for xps
+        if rank == 0 and not fix_v1:
+            conf0 = ' '.join([str(n - 1), str(n - 1)])
+            if conf0 in Af: Af.pop(conf0)
 
         if comm:
             Af = comm.bcast(Af, root = 0)

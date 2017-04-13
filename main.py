@@ -108,10 +108,15 @@ for isk in range(para.pool.nsk):
                                  zeta_analysis = user_input.zeta_analysis and ik == 0)
 
         first = True
-        for Af in Af_list:
+        for order, Af in enumerate(Af_list):
 
-            ener_axis, spec = stick_to_spectrum(Af_to_stick(Af), user_input)
+            stick = Af_to_stick(Af)
+            ener_axis, spec = stick_to_spectrum(stick, user_input)
             ener_axis += user_input.ESHIFT_FINAL + fscf.obf.eigval[int(nocc)]
+
+            # important information for understanding shakeup effects and convergence 
+            para.print("order {0:>2}: no. of sticks = {1:>7}, max stick = {2} ".
+                        format( order, len(stick), max([s[1] for s in stick] + [0.0]) ))
 
             if first:
                 spec_xps_ = sp.zeros([len(ener_axis), 2])
@@ -177,9 +182,8 @@ for isk in range(para.pool.nsk):
             postfix += '_ispin{0}'.format(ispin)
         postfix += '.dat'
         
-        if user_input.maxfn > 1: 
-            sp.savetxt(spec_xps_fname + postfix, spec_xps_, delimiter = ' ')
-            spec_xps.append(spec_xps_)
+        sp.savetxt(spec_xps_fname + postfix, spec_xps_, delimiter = ' ')
+        spec_xps.append(spec_xps_)
 
         sp.savetxt(spec_xas_fname + postfix, spec_xas_, delimiter = ' ')
         spec_xas.append(spec_xas_)
