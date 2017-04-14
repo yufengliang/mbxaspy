@@ -67,10 +67,11 @@ class pool_class(object):
                 # actual pool size (npp plus residue)
                 self.size     = self.comm.Get_size()
             else:
-                self.comm   = None
-                self.roots  = [0]
-                self.rank   = 0
-                self.size   = 1
+                self.comm       = None
+                self.rootcomm   = None
+                self.roots      = [0]
+                self.rank       = 0
+                self.size       = 1
             self.up = True
     
     def info(self):
@@ -122,10 +123,12 @@ class pool_class(object):
         """ collect and print out the spin-kpoint tuples on each pool """
 
         para = self.para
-        if para.comm:
-            self.sk_list_all = para.comm.gather(self.sk_list, root = 0)
+        if self.rootcomm:
+            self.sk_list_all = rootcomm.gather(self.sk_list, root = 0)
+            self.sk_list_all = rootcomm.bast(self.sk_list_all, root = 0)
         else:
-            self.sk_list_all = self.sk_list
+            self.sk_list_all = [self.sk_list]
+        self.sk_list_maxl = max([len(skl) for skl in self.sk_list_all])
         
     def isroot(self):
         """ is this the root of the current pool ? """

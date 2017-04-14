@@ -23,8 +23,8 @@ if ismpi():
 else:
     print(' Not an MPI environment. Running the serial version. ')
 # define pools
-para.pool = pool_class(para)
-__all__ += ['para']
+para.pool = pool = pool_class(para)
+__all__ += ['para', 'pool']
 para.print()
 
 # python version

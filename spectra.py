@@ -92,5 +92,24 @@ def spectrum0(scf, ixyz, nocc = 0, smearing = 'gauss'):
     smear_func = gaussian
     if smearing == 'lor': smear_func = lorentzian
     return stick_to_spectrum(stick, scf.userin, smear_func)
+
+
+def convolute_spec(spec, spec_xps):
+    """
+    Convolute some spectra with a given XPS spectrum
+
+    continuous version:
+
+    A_total (E) = int dE' A_xps (E - E') A(E')
+
+    discrete version:
+    A_{total, i} = sum^i_{j = j_lo} A_{i - j} B_j
     
-        
+    Assume they have the same energy axes
+    """
+    nener = min(spec.shape[0], spec_xps.shape[0])
+    spec_ = spec.copy()
+    for ie in range(nener):
+        # e.g., c3 = a0 b3 + a1 b2 + a2 b1 + a3 b0
+        spec_[ie, 1 :: ] = sp.matrix(spec_xps[:ie, 1]).T * sp.matrix(spec[ie :: -1, 1 ::])
+    return spec_

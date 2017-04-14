@@ -441,6 +441,7 @@ class scf_class(object):
                 # get spin and k-point index processed by this pool
                 para.pool.set_sk_list(nspin = self.nspin, nk = self.nk)
                 # para.pool.print(str(para.pool.sk_list) + ' ' + str(para.pool.sk_offset)) # debug
+                para.pool.sk_info()
 
                 # initialize obf
                 # Typing this list of parameter again seems to be redundant. Use inheritance ?

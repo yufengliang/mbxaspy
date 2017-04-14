@@ -46,18 +46,19 @@ nspin = iscf.nspin
 for isk in range(para.pool.nsk):
 
     ispin, ik  = para.pool.sk_list[isk] # acquire current spin
+    para.print(' Processing (ispin, ik) = ({0},{1}) \n'.format(ispin, ik))
     # weight the sticks according to the k-grid
     weight =  iscf.kpt.weight[isk]; 
     # para.print('weight = {0}'.format(weight)) # debug
 
     # Import the initial-state scf calculation
     para.sep_line()
-    para.print(' Import initial-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, ik))
+    para.print(' Importing initial-state scf\n')
     iscf.input(isk = isk)
 
     # Import the final-state scf calculation
     para.sep_line(second_sepl)
-    para.print(' Import final-state scf for (ispin, ik) = ({0},{1}) \n'.format(ispin, ik), flush = True)
+    para.print(' Importing final-state scf\n', flush = True)
     fscf.input(is_initial = False, isk = isk)
 
     # Obtain the effective occupation number: respect the initial-state #electrons
@@ -195,7 +196,7 @@ for isk in range(para.pool.nsk):
     # end if spec0_only
 # end of isk
 
-# Output Spectra
+## Output Spectra
 
 # intial-state one-body
 spec0_i[:, 1 : 1 + nspin] /= 3.0
@@ -211,8 +212,77 @@ if user_input.final_1p:
         spec0_f[:, 1 : ] = para.pool.rootcomm.reduce(spec0_f[:, 1 : ], op = MPI.SUM) 
     if para.isroot(): sp.savetxt(spec0_f_fname, spec0_f, delimiter = ' ')
 
-# *** Convolute the many-body spectra 
+## Calculate total many-body spectra 
 
+# convolute spin-up and -down spectra if nspin == 2
+# *** Is this too cumbersome ?
+if pool.isroot():
 
+    spec_xas_cvlt = [None] * nspin
+    spec_xps_cvlt = [None] * nspin
 
+    first = True
+    # go over all the isk th elements
+    for isk in range(pool.sk_list_maxl):
 
+        if nspin == 2:
+            # find the xps that needs to be sent for the isk tuples overall all pools
+            for pool_i_recv, skl in enumerate(pool.sk_list_all):
+                # if wanted xps (of opposite spin) is on this pool
+                if isk < len(skl): # if skl has the isk th element
+                    twin_sk = (1 - skl[isk][0], skl[isk][1]) # find its twin
+                    if twin_sk in pool.sk_list:
+                        ind = pool.sk_list.index(twin_sk)
+                        if pool.rootcomm and pool_i_recv != pool.i:
+                            pool.rootcomm.send(spec_xps[ind], dest = pool_i_recv)
+                        else:
+                            spec_xps_twin = spec_xps[ind]
+            # receive xps_twin if it is not on the same pool
+            if isk < len(pool.sk_list) and (1 - pool.sk_list[isk][0], pool.sk_list[isk][1]) not in pool.sk_list[isk]:
+                spec_xps_twin = pool.rootcomm.recv(source = MPI.ANY_SOURCE)
+
+        if isk < len(pool.sk_list):
+
+            # convolute xas with xps_twin
+            spec_cvlt = convolute_spec(spec_xas[isk], spec_xps_twin) if nspin == 2 else spec_xas[isk].copy()
+            ispin = pool.sk_list[isk][0]
+            if first:
+                spec_xas_cvlt[ispin] = spec_cvlt
+            else:
+                spec_xas_cvlt[ispin][:, 1 :: ] += spec_cvlt[:, 1 :: ]
+
+            # convolute xps with xps_twin
+            spec_cvlt = convolute_spec(spec_xps[isk], spec_xps_twin) if nspin == 2 else spec_xps[isk].copy()
+            if first:
+                spec_xps_cvlt[ispin] = spec_cvlt
+            else:
+                spec_xps_cvlt[ispin][:, 1 :: ] += spec_cvlt[:, 1 :: ]
+                first = False
+
+            # *** convolute major sticks (gamma_only)
+
+        if pool.rootcomm: pool.rootcomm.barrier()
+
+# Add spectra from each k-point
+spec_xas_final = sp.zeros([spec_xas_cvlt[0].shape[0], 4 * nspin + 1])
+spec_xas_final[:, 0] = spec_xas_cvlt[0][:, 0]
+for ispin in range(nspin):
+    if pool.rootcomm:
+        spec_xas_final[:, 1 + ispin :: nspin] = pool.rootcomm.reduce(spec_xas_cvlt[ispin][:, 1 :: ], op = MPI.SUM)
+    if not ismpi():
+        spec_xas_final[:, 1 + ispin :: nspin] = spec_xas_cvlt[ispin][:, 1 ::]
+
+spec_xps_final = sp.zeros([spec_xps_cvlt[0].shape[0], 2])
+spec_xps_final[:, 0] = spec_xps_cvlt[0][:, 0]
+# the two spin channels are the same for xps
+if pool.rootcomm:
+    spec_xps_final[:, 1] = pool.rootcomm.reduce(spec_xps_cvlt[ispin][:, 1], op = MPI.SUM)
+if not ismpi():
+    spec_xps_final[:, 1] = spec_xps_cvlt[ispin][:, 1]
+
+# the end
+postfix = '.dat'
+sp.savetxt(spec_xas_fname + postfix, spec_xas_final, delimiter = ' ')
+sp.savetxt(spec_xps_fname + postfix, spec_xps_final, delimiter = ' ')
+
+# Bye ! ~
