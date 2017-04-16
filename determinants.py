@@ -75,7 +75,7 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
 
         xi_mat_q, xi_mat_r = la.qr(xi_mat.T)
         xi_mat_tmp[n - 1] = xi_mat_q[:, n - 1].T
-	det_mom = la.det(xi_mat_tmp)
+        det_mom = la.det(xi_mat_tmp)
 
     # Construct the zeta-matrix
     xi_mat_inv = la.inv(xi_mat_tmp)
@@ -172,9 +172,9 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
         
 	# Record Af from all possible final-state indices f
 	# 'If' is an array of dictionaries (len = nspin)
-	Af_new = {}
-		
-	"""
+        Af_new = {}
+
+        """
 	The index of a configuration: conf = '(v1) c1 v2 c2 v3 c3 ...'
         that satisfies:
         v1 > v2 > v3 > ..., and c1 < c2 < c3 < ...
@@ -200,7 +200,7 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
             else: conf_minv = min(conf_v + [n])
             # indices of empty (c) states ; conf_c is guaranteed to be sorted
             conf_c = conf_[1 - int(fix_v1) :: 2]
-	    conf_c_set = set(conf_c)
+            conf_c_set = set(conf_c)
 
             # energy of the parent configuration
             f_ener = Af[conf][0]
@@ -220,18 +220,18 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
                 new_c += n - 1
 
 		# ndepth = 1 is special when fix_v1 = True
-		if ndepth == 1 and fix_v1 and new_v < n - 1: break
+                if ndepth == 1 and fix_v1 and new_v < n - 1: break
 
 		# Make sure c doesn't appear twice in a configuration
-		if new_c in conf_c_set: continue
+                if new_c in conf_c_set: continue
 
 		# Energy filter
 	
 		# don't go too deep into the valence band
-		if ener[n - 1] - ener[new_v] + f_ener > e_hi_thr: break
+                if ener[n - 1] - ener[new_v] + f_ener > e_hi_thr: break
 
-		enew = ener[new_c] - ener[new_v] + f_ener
-		if enew > e_hi_thr: continue
+                enew = ener[new_c] - ener[new_v] + f_ener
+                if enew > e_hi_thr: continue
 
                 """
                 Find out the sign for the child configuration
@@ -336,8 +336,8 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
                     if abs(Af[conf][1]) > abs(Af[max_conf][1] * det_thr_label): label = '*'
                     para.print('{0}: {1:>12.5}  {2:>12.5e} {3}'.format(conf_, abs(Af[conf][0]), abs(Af[conf][1]), label))
 
-        para.print('max_conf: {0}, amp = {1}'.format(max_conf, abs(Af[max_conf][1])))
-        para.print()
+            para.print('max_conf: {0}, amp = {1}'.format(max_conf, abs(Af[max_conf][1])))
+            para.print()
 
         Af_list.append(Af)
     # end for ndepth

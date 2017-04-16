@@ -48,7 +48,7 @@ for isk in range(para.pool.nsk):
     ispin, ik  = para.pool.sk_list[isk] # acquire current spin
     para.print(' Processing (ispin, ik) = ({0},{1}) \n'.format(ispin, ik))
     # weight the sticks according to the k-grid
-    weight =  iscf.kpt.weight[isk]; 
+    weight =  iscf.kpt.weight[ik]; 
     # para.print('weight = {0}'.format(weight)) # debug
 
     # Import the initial-state scf calculation

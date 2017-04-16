@@ -93,7 +93,7 @@ class pool_class(object):
             para.print(' {0:>4}{1:>6}{2:<6}'.format(i, len(self.pool_list[i]), '  ' + str(self.pool_list[i]).strip('[]')))
         para.print()
         
-    def set_sk_list(self, nspin = 1, nk = 1):
+    def set_sk_list(self, nspin = 1, nk = 1, nk_use = 1):
         """ 
         set up a list of spin and kpoint tuples to be processed on this proc
 
@@ -109,10 +109,11 @@ class pool_class(object):
         """
         self.nspin = nspin
         self.nk = nk
+        self.nk_use = nk_use
         self.sk_list = []
         self.sk_offset = []
         for s in range(nspin):
-            for k in range(nk):
+            for k in range(nk_use):
                 offset = s * nk + k
                 if offset % self.n == self.i:
                     self.sk_list.append((s, k))

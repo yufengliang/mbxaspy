@@ -288,6 +288,7 @@ class scf_class(object):
         # variable list and default values
         self.nbnd   = 0                         # number of bands    
         self.nk     = 0                         # number of k-points
+        self.nk_use = 0                         # number of k-points to be used
         self.nelec  = 0                         # number of electrons
         self.ncp    = 1                         # number of core levels
         self.nspin  = 1                         # number of spins
@@ -417,8 +418,8 @@ class scf_class(object):
 
                 # initialize k-points
                 # print(self.nspin, self.nk, userin.gamma_only) # debug
-                if userin.gamma_only: self.nk = self.nspin
-                self.kpt = kpoints_class(nk = self.nk)
+                self.nk_use = 1 if userin.gamma_only else self.nk
+                self.kpt = kpoints_class(nk = self.nk_use)
 
                 # Check k-grid consistency between the initial and final state *** We should move this check outside 
                 if not is_initial:
@@ -429,17 +430,17 @@ class scf_class(object):
 
                 if is_initial and not para.pool.up:
                     # set up pools
-                    if self.nk < para.size / userin.nproc_per_pool:
-                        para.print(' Too few k-points (' + str(self.nk) + ') for ' + str(int(para.size / userin.nproc_per_pool)) + ' pools.')
-                        para.print(' Increase nproc_per_pool to ' + str(int(para.size / self.nk)))
-                        para.print()
-                        userin.nproc_per_pool = int(para.size / self.nk)
+                    nsk = self.nk_use * self.nspin
+                    if nsk < para.size / userin.nproc_per_pool:
+                        para.print(' Too few (spin, k) tuples ({0}) to calculate for {1} pools.'.format(nsk, int(para.size / userin.nproc_per_pool)))
+                        para.print(' Increase nproc_per_pool to {0}\n'.format(int(para.size / nsk)))
+                        userin.nproc_per_pool = int(para.size / nsk)
 
                     para.pool.set_pool(userin.nproc_per_pool)
                     para.pool.info()
 
                 # get spin and k-point index processed by this pool
-                para.pool.set_sk_list(nspin = self.nspin, nk = self.nk)
+                para.pool.set_sk_list(nspin = self.nspin, nk = self.nk, nk_use = self.nk_use)
                 # para.pool.print(str(para.pool.sk_list) + ' ' + str(para.pool.sk_offset)) # debug
                 para.pool.sk_info()
 
