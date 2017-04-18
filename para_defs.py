@@ -125,8 +125,8 @@ class pool_class(object):
 
         para = self.para
         if self.rootcomm:
-            self.sk_list_all = rootcomm.gather(self.sk_list, root = 0)
-            self.sk_list_all = rootcomm.bast(self.sk_list_all, root = 0)
+            self.sk_list_all = self.rootcomm.gather(self.sk_list, root = 0)
+            self.sk_list_all = self.rootcomm.bcast(self.sk_list_all, root = 0)
         else:
             self.sk_list_all = [self.sk_list]
         self.sk_list_maxl = max([len(skl) for skl in self.sk_list_all])
