@@ -71,7 +71,7 @@ def eff_nocc(nelec, nspin, ispin):
     if nspin == 1:
         return nelec / 2.0
     else:
-        return nelec / 2 + ispin * (nelec % 2)
+        return nelec / 2 + (1 - ispin) * (nelec % 2)
 
 
 def spectrum0(scf, ixyz, nocc = 0, smearing = 'gauss'):
