@@ -86,9 +86,9 @@ for isk in range(para.pool.nsk):
             spec0_f[:, col] += spec0
             spec0_f[:, ispin + 1] += spec0 # angular average
 
-    para.print('  Calculating many-body spectra ... ')
-
     if not user_input.spec0_only:
+
+        para.print('  Calculating many-body spectra ... ')
 
         # Compute the transformation matrix xi
         xi = compute_xi(iscf, fscf)
@@ -141,7 +141,8 @@ for isk in range(para.pool.nsk):
 
             para.print('  ixyz = {0}'.format(ixyz))
             # Compute xi_c
-            xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc)
+            xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc, user_input.nbnd_i)
+            # xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc)
             # para.print('xi_c.shape = {0}'.format(str(xi_c.shape))) # debug
 
             # Add the last column
@@ -211,6 +212,8 @@ if user_input.final_1p:
     if ismpi() and para.pool.isroot():
         spec0_f[:, 1 : ] = para.pool.rootcomm.reduce(spec0_f[:, 1 : ], op = MPI.SUM) 
     if para.isroot(): sp.savetxt(spec0_f_fname, spec0_f, delimiter = ' ')
+
+para.stop() # debug
 
 ## Calculate total many-body spectra 
 

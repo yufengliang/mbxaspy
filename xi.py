@@ -114,7 +114,7 @@ def eig_analysis_xi(xi, postfix = ''):
     return msg
 
 
-def compute_xi_c(xi, xmat_c, nocc):
+def compute_xi_c(xi, xmat_c, nocc, nbnd_i_use = 10000):
     """
     Compute
         sum_c xi_{i, c} < phi_c | O | phi_h > ^ *
@@ -133,7 +133,7 @@ def compute_xi_c(xi, xmat_c, nocc):
     if nocc % 1 > small_thr: # partial occupation
         xmat_c_[0] *= nocc % 1
     nocc = int(nocc)
-    nbnd_i = min(xi.shape[1], len(xmat_c_))
+    nbnd_i = min(xi.shape[1], len(xmat_c_), nbnd_i_use)
     xmat_c_ = sp.matrix(xmat_c_)
     if xmat_c_.shape[1] > 1: xmat_c_ = xmat_c_.T
     return xi[:, nocc : nbnd_i] * xmat_c_[nocc : nbnd_i, 0]

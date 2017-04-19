@@ -35,6 +35,9 @@ class user_input_class(object):
         self.SIGMA          = 0.2       # eV
         self.smearing       = 'gauss'   # gauss or lor (lorentzian)
 
+        self.nbnd_i         = 10000
+        self.nbnd_f         = 10000
+
         self.maxfn          = 2         # final-state shakeup order
         self.I_thr          = 1e-6      # intensity cutoff
         
