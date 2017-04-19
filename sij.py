@@ -82,11 +82,13 @@ def draw_wave(l, phi_ps, phi_ae):
 
 
 draw_wave(l_gs, phi_gs_ps, phi_gs_ae)
-plt.savefig('wave_gs.eps', format = 'eps', dpi = 1000)
+#plt.savefig('wave_gs.eps', format = 'eps', dpi = 1000)
+plt.savefig('wave_gs.png', format = 'png')
 plt.close()
 
 draw_wave(l_x, phi_x_ps, phi_x_ae)
-plt.savefig('wave_x.eps', format = 'eps', dpi = 1000)
+#plt.savefig('wave_x.eps', format = 'eps', dpi = 1000)
+plt.savefig('wave_x.png', format = 'png')
 plt.close()
 
 # Calculate the overlap S_ij
