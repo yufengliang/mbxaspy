@@ -9,6 +9,7 @@ from utils import *
 from defs import *
 from init import *
 from spectra import *
+from analysis import *
 
 # input user-defined arguments from stdin
 user_input.read()
@@ -55,11 +56,13 @@ for isk in range(para.pool.nsk):
     para.sep_line()
     para.print(' Importing initial-state scf\n')
     iscf.input(isk = isk)
+    para.print('  xmat: the {0}th atom in ATOMIC_POSITION card is the excited atom.'.format(xatom(iscf.proj, iscf.xmat) + 1))
 
     # Import the final-state scf calculation
     para.sep_line(second_sepl)
     para.print(' Importing final-state scf\n', flush = True)
     fscf.input(is_initial = False, isk = isk)
+    para.print('  xmat: the {0}th atom in ATOMIC_POSITION card is the excited atom.'.format(xatom(fscf.proj, fscf.xmat) + 1))
 
     # Obtain the effective occupation number: respect the initial-state #electrons
     nocc = eff_nocc(iscf.nelec, nspin, ispin)

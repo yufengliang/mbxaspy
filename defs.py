@@ -210,7 +210,7 @@ class proj_class(object):
             if self.atomic_pos[i][0][-1] == 'X': self.x = i
         para.print('  number of atom species                    = {0}'.format(self.nspecies))
         para.print('  number of atoms                           = {0}'.format(self.natom))
-        if self.x >= 0: para.print(' The excited atom is ' + str(self.x)) # debug
+        if self.x >= 0: para.print(' The excited atom is ' + str(self.x + 1)) # debug
 
 
     def import_l_qij(self):
@@ -233,8 +233,12 @@ class proj_class(object):
             # Calculate # projectors for each kind of atom
             self.nprojs.append(sum([2 * _ + 1 for _ in l]))
         # Calculate total # of projectors in the system
+        self.iproj2atom = []
         for i in range(self.natom):
-            self.nproj += self.nprojs[self.ind[self.atomic_pos[i][0]]]
+            nproj = self.nprojs[self.ind[self.atomic_pos[i][0]]]
+            self.nproj += nproj
+            # Find which atom each projector belongs to
+            self.iproj2atom += [i] * nproj 
         para.print('  number of projectors = {0}'.format(self.nproj))
 
 
@@ -489,12 +493,13 @@ class scf_class(object):
                 # are stored in the same xmat file. You need to set up an offset to locate the 
                 # right block for this excited atom being processed
                 if is_initial: 
-                    para.print('  This is {0}th excited atom. '.format(self.proj.icore))
+                    para.print('  This is {0}th excited atom. '.format(self.proj.icore + 1))
                     size = self.nk * self.nbnd * self.ncp * nxyz
                     offset = size * self.proj.icore
                 else: offset = 0
                 self.input_xmat(fh, offset, para.pool.sk_offset[isk], is_initial)
                 para.print()
+                
             fh.close()
         
         
