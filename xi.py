@@ -135,7 +135,7 @@ def compute_xi_c(xi, xmat_c, nocc, nbnd_i_use = 10000):
     nocc = int(nocc)
     nbnd_i = min(xi.shape[1], len(xmat_c_), nbnd_i_use)
     xmat_c_ = sp.matrix(xmat_c_)
-    if xmat_c_.shape[1] > 1: xmat_c_ = xmat_c_.T
+    if xmat_c_.shape[1] > 1: xmat_c_ = xmat_c_.H
     return xi[:, nocc : nbnd_i] * xmat_c_[nocc : nbnd_i, 0]
 
     
