@@ -50,6 +50,7 @@ for isk in range(para.pool.nsk):
     para.print(' Processing (ispin, ik) = ({0},{1}) \n'.format(ispin, ik))
     # weight the sticks according to the k-grid
     weight =  iscf.kpt.weight[ik]; 
+    prefac = weight * Ryd
     # para.print('weight = {0}'.format(weight)) # debug
 
     # Import the initial-state scf calculation
@@ -62,7 +63,7 @@ for isk in range(para.pool.nsk):
     para.sep_line(second_sepl)
     para.print(' Importing final-state scf\n', flush = True)
     fscf.input(is_initial = False, isk = isk)
-    para.print('  xmat: the {0}th atom in ATOMIC_POSITION card is the excited atom.'.format(xatom(fscf.proj, fscf.xmat) + 1))
+    if user_input.final_1p: para.print('  xmat: the {0}th atom in ATOMIC_POSITION card is the excited atom.'.format(xatom(fscf.proj, fscf.xmat) + 1))
 
     # Obtain the effective occupation number: respect the initial-state #electrons
     nocc = eff_nocc(iscf.nelec, nspin, ispin)
@@ -79,13 +80,13 @@ for isk in range(para.pool.nsk):
             spec0_i[:, 0] = ener_axis
             if user_input.final_1p: spec0_f = spec0_i.copy()
         col = (1 + ixyz) * iscf.nspin + (ispin + 1)
-        spec0 *= weight
+        spec0 *= prefac
         spec0_i[:, col] += spec0
         spec0_i[:, ispin + 1] += spec0 # angular average
         if user_input.final_1p:
             ener_axis, spec0 \
             = spectrum0(fscf, ixyz, nocc, user_input.smearing)
-            spec0 *= weight
+            spec0 *= prefac
             spec0_f[:, col] += spec0
             spec0_f[:, ispin + 1] += spec0 # angular average
 
@@ -182,6 +183,7 @@ for isk in range(para.pool.nsk):
         # end of ixyz
 
         spec_xas_[:, 1] = spec_xas_[:, 2] + spec_xas_[:, 3] + spec_xas_[:, 4]
+        spec_xas_[:, 1 : ] *= prefac / 3.0
 
         # output for debug
         postfix = ''
