@@ -179,7 +179,9 @@ class para_class(object):
         """ stop the code """
         if self.comm is not None:
             # in mpi
-            self.comm.Abort(0)
+            # self.comm.Abort(0)
+            self.MPI.Finalize()
+            sys.exit(0)
         else:
             # non-mpi
             sys.exit(0)

@@ -47,28 +47,33 @@ nspin = iscf.nspin
 for isk in range(para.pool.nsk):
 
     ispin, ik  = para.pool.sk_list[isk] # acquire current spin
+
+    para.sep_line()
     para.print(' Processing (ispin, ik) = ({0},{1}) \n'.format(ispin, ik))
+
     # weight the sticks according to the k-grid
     weight =  iscf.kpt.weight[ik]; 
     prefac = weight * Ryd
     # para.print('weight = {0}'.format(weight)) # debug
 
     # Import the initial-state scf calculation
-    para.sep_line()
+    para.sep_line(second_sepl)
     para.print(' Importing initial-state scf\n')
     iscf.input(isk = isk)
-    para.print('  xmat: the {0}th atom in ATOMIC_POSITION card is the excited atom.'.format(xatom(iscf.proj, iscf.xmat) + 1))
+    para.print('  xmat: the {0}th atom in ATOMIC_POSITIONS is excited.'.format(xatom(iscf.proj, iscf.xmat) + 1))
 
     # Import the final-state scf calculation
     para.sep_line(second_sepl)
     para.print(' Importing final-state scf\n', flush = True)
     fscf.input(is_initial = False, isk = isk)
-    if user_input.final_1p: para.print('  xmat: the {0}th atom in ATOMIC_POSITION card is the excited atom.'.format(xatom(fscf.proj, fscf.xmat) + 1))
+    if user_input.final_1p: para.print('  xmat: the {0}th atom in ATOMIC_POSITIONS card is excited.'.format(xatom(fscf.proj, fscf.xmat) + 1))
 
     # Obtain the effective occupation number: respect the initial-state #electrons
-    nocc = eff_nocc(iscf.nelec, nspin, ispin)
+    if nspin == 1: nocc = iscf.nocc
+    else: nocc = iscf.nocc[ik][ispin]
 
     # Compute non-interacting spectra *** should I put it in a def ?
+    para.print('  Calculating one-body spectra ...\n', flush = True)
     for ixyz in range(3):
         # *** currently only x, y, z
         ener_axis, spec0 = spectrum0(iscf, ixyz, nocc, user_input.smearing)
@@ -218,7 +223,9 @@ if user_input.final_1p:
         spec0_f[:, 1 : ] = para.pool.rootcomm.reduce(spec0_f[:, 1 : ], op = MPI.SUM) 
     if para.isroot(): sp.savetxt(spec0_f_fname, spec0_f, delimiter = ' ')
 
-para.stop() # debug
+if user_input.spec0_only:
+    para.print('mbxaspy done', flush = True)
+    para.stop() # debug
 
 ## Calculate total many-body spectra 
 

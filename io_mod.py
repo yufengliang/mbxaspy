@@ -129,23 +129,27 @@ def convert_val(val_str, val):
         return val_type(float(val_str))
 
 
-def list2str_1d(nums):
+def list2str_1d(nums, mid = -1):
     """ 
     Give a list of nums, output the head, the middle, and the tail of it
     with nice format. Return the formatted string.
+
+    Args:
+    mid: define the middle point you are interested in
     """
 
     nvis = 3 # numbers printed out in each part
-    l = len(nums)
+    l = len(nums) 
+    mid = mid if mid > 0 else l / 2
     fmtstr = '{0:.4f} '
     resstr = ''
     for i in range(min(nvis, l)):
         resstr += fmtstr.format(nums[i])
-    irange = range(max(nvis + 1, int(l / 2 - nvis / 2)), min(l, int(l / 2 + nvis / 2 + 1)))
+    irange = range(max(nvis + 1, int(mid - nvis / 2)), min(l, int(mid + nvis / 2 + 1)))
     if len(irange) > 0: resstr += ' ... '
     for i in irange:
         resstr += fmtstr.format(nums[i])
-    irange = range(max(int(l / 2 + nvis / 2 + 1), l - nvis), l)
+    irange = range(max(int(mid + nvis / 2 + 1), l - nvis), l)
     if len(irange) > 0: resstr += ' ... '
     for i in irange:
         resstr += fmtstr.format(nums[i])

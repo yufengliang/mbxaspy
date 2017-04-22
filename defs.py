@@ -64,7 +64,6 @@ class user_input_class(object):
         var_input = input_arguments(lines)
         # para.print(var_input) # debug
         for var in set(vars(self)) & set(var_input): # This can be improved
-            setattr(self, var, convert_val(var_input[var], type(getattr(self, var))))
             try:
                 # convert var into correct data type as implied in __init__ and set attributes
                 setattr(self, var, convert_val(var_input[var], type(getattr(self, var))))
@@ -104,18 +103,16 @@ class optimal_basis_set_class(object):
         self.eigval     = sp.array([])    # eigenvalues (band energies)
         self.eigvec     = sp.matrix([])    # eigenvectors (wavefunctions)
 
-    # Should I input them at the pool root and then broadcast them ?
-    def input_eigval(self, fh, sk_offset):
+    def input_eigval(self, fh, sk_offset, output_msg = True, mid = -1):
         sp = self.sp
         para = self.para
-        pool = para.pool
         try:
             self.eigval = input_from_binary(fh, 'double', self.nbnd, sk_offset * self.nbnd)
         except struct.error:
             para.error('Problem converting eigval file.')
-        self.eigval = [ e * Ryd for e in self.eigval ]
+        self.eigval = [ e * Ryd for e in self.eigval ] # Don't forget Rydberg
         # Output a part of eigenvalues
-        para.print('  ' + list2str_1d(self.eigval)) 
+        if output_msg: para.print('  ' + list2str_1d(self.eigval, mid)) 
         self.eigval = sp.array(self.eigval)
 
     def input_eigvec(self, fh, sk_offset):
@@ -210,7 +207,8 @@ class proj_class(object):
             if self.atomic_pos[i][0][-1] == 'X': self.x = i
         para.print('  number of atom species                    = {0}'.format(self.nspecies))
         para.print('  number of atoms                           = {0}'.format(self.natom))
-        if self.x >= 0: para.print(' The excited atom is ' + str(self.x + 1)) # debug
+        if self.x >= 0: 
+            para.print('  The {0}th atom in ATOMIC_POSITIONS ({1}) is excited.'.format(self.x + 1, self.atomic_pos[self.x][0][:-1])) # debug
 
 
     def import_l_qij(self):
@@ -249,7 +247,9 @@ class proj_class(object):
             if 'IND_EXCITATION' in key:
                 self.ind_excitation[get_index(key) - 1] = int(self.scf.iptblk[key])
         # self.para.print(self.ind_excitation) # debug
+        self.ncore = sum(self.ind_excitation)
         if self.x > 0: self.icore = sum(self.ind_excitation[0 : self.x])
+        self.para.print('  This is the {0}th atom among {1} core-excited atoms.\n'.format(self.icore + 1, self.ncore))
 
     def input_sij(self):
         """ 
@@ -378,10 +378,9 @@ class scf_class(object):
         xas_data_prefix = xas_prefix + '.' + str(userin.xas_arg)
 
         # Figure out which types of files to input
-        ftype = []
-        if isk < 0: ftype += ['info', 'proj'] # if this is the first time to read, then read the information first
+        if isk < 0: ftype = ['info', 'eigval', 'proj'] # if this is the first time to read, then read the information first
         else: 
-            ftype += ['eigval', 'eigvec', 'proj']
+            ftype = ['eigval', 'eigvec', 'proj']
             if is_initial or userin.final_1p: ftype += ['xmat'] # need pos matrix element for the initial state
         
         # Open and read the relevant files
@@ -423,6 +422,10 @@ class scf_class(object):
                            ).format(self.nbnd, self.nspin, self.nk, self.nelec, self.nbasis)
                 para.print(info_str)
 
+                # check no. of electrons
+                if self.nelec > self.nbnd * 2:
+                    para.error('Too many electrons ({0}) for {1} bands !'.format(self.nelec, self.nbnd))
+
                 # initialize k-points
                 # print(self.nspin, self.nk, userin.gamma_only) # debug
                 self.nk_use = 1 if userin.gamma_only else self.nk
@@ -431,8 +434,7 @@ class scf_class(object):
                 # Check k-grid consistency between the initial and final state *** We should move this check outside 
                 if not is_initial:
                     if para.pool.nk != self.nk: # if the initial-state # of kpoints is not the same with the final-state one
-                        para.print(' Inconsistent k-point number nk_i = ' + str(para.pool.nk) + ' v.s. nk_f = ' + str(self.nk) + ' Halt.')
-                        para.stop()
+                        para.error(' Inconsistent k-point number nk_i = ' + str(para.pool.nk) + ' v.s. nk_f = ' + str(self.nk) + ' Halt.')
                     para.print(' Consistency check OK between the initial and final scf. \n')
 
                 if is_initial and not para.pool.up:
@@ -461,16 +463,38 @@ class scf_class(object):
 
             # eigenvalue file
             if f == 'eigval':
-                para.print('  Band energies (eV): ')
-                self.obf.input_eigval(fh, para.pool.sk_offset[isk])
-                self.eigval = self.obf.eigval # *** is this awkward ?
-                para.print()
+                if isk < 0:
+                    # determine the occupation number for each k-point
+                    if self.nspin == 1:
+                        self.nocc = self.nelec / 2.0
+                    else:
+                        self.nocc = []
+                        for k in range(self.nk_use):
+                            eigval = [None] * 2
+                            for s in range(self.nspin):
+                                offset = s * self.nk + k
+                                self.obf.input_eigval(fh, offset, output_msg = False)
+                                eigval[s] = list(self.obf.eigval)
+                            # occupation numbers for spin up and down channels for this k
+                            self.nocc.append(find_nocc(eigval, self.nelec))
+
+                if isk >= 0:
+                    para.print('  Band energies (eV): ')
+                    if self.nspin == 1: nocc = self.nocc
+                    else:
+                        ispin, ik  = para.pool.sk_list[isk] 
+                        nocc = self.nocc[ik][ispin]
+                    self.obf.input_eigval(fh, para.pool.sk_offset[isk], mid = int(nocc))
+                    self.eigval = self.obf.eigval
+                    para.print('  occupation number: {0}'.format(nocc))
+                    para.print('  local efermi = {0:.4f}'.format(self.eigval[int(nocc) - 1]))
+                    para.print()
 
             # eigenvector file
             if f == 'eigvec':
                 para.print('  Obf Wavefunctions : ')
                 self.obf.input_eigvec(fh, para.pool.sk_offset[isk])
-                self.eigvec = self.obf.eigvec # *** is this awkward ?
+                self.eigvec = self.obf.eigvec
                 para.print()
 
             # projector file
@@ -493,7 +517,6 @@ class scf_class(object):
                 # are stored in the same xmat file. You need to set up an offset to locate the 
                 # right block for this excited atom being processed
                 if is_initial: 
-                    para.print('  This is {0}th excited atom. '.format(self.proj.icore + 1))
                     size = self.nk * self.nbnd * self.ncp * nxyz
                     offset = size * self.proj.icore
                 else: offset = 0

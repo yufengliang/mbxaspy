@@ -57,7 +57,8 @@ def Af_to_stick(Af):
     Af: a dictionary of array([energy, amplitude])
     """
     return [ [Af[conf][0].real, float(abs(Af[conf][1]) ** 2)] for conf in Af]
-    
+
+# This is obsolete and could be incorrect for nspin = 2.   
 def eff_nocc(nelec, nspin, ispin):
     """ 
     Find the number of effective electrons to indicate the Fermi level
