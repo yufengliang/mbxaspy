@@ -112,5 +112,5 @@ def convolute_spec(spec, spec_xps):
     spec_ = spec.copy()
     for ie in range(nener):
         # e.g., c3 = a0 b3 + a1 b2 + a2 b1 + a3 b0
-        spec_[ie, 1 :: ] = sp.matrix(spec_xps[:ie, 1]).T * sp.matrix(spec[ie :: -1, 1 ::])
+        spec_[ie, 1 :: ] = sp.matrix(spec_xps[:ie + 1, 1]) * sp.matrix(spec[ie :: -1, 1 ::])
     return spec_
