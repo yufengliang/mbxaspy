@@ -24,7 +24,7 @@ class pool_class(object):
         self.up = False
         self.msg = ''
 
-    def set_pool(self, nproc_per_pool = 1):
+    def set_pool(self, nproc_per_pool = 1, remainder_mode = False):
         """ 
         set up pools so that each pool has at least nproc_per_pool procs 
         
@@ -40,7 +40,7 @@ class pool_class(object):
            1       3    1, 4, 7
            2       3    2, 5, 8
 
-        Contiguous Mode (to be developed *** ):
+        Contiguous Mode:
 
         pool    size    proc
            0       4    0, 1, 2, 3   
@@ -57,22 +57,40 @@ class pool_class(object):
                 para.print(' Reduce nproc_per_pool to ' + str(para.size))
                 self.npp = para.size
             self.n      = int(para.size / self.npp)  # number of pools
-            self.i      = int(para.rank % self.n)    # the index of the pool
+            # the index of the pool
+            if remainder_mode:
+                self.i = int(para.rank % self.n)
+            else:
+                res = int(para.size % self.npp)
+                if para.rank < res * (self.npp + 1):
+                    self.i = int(para.rank / (self.npp + 1))
+                else:
+                    self.i = int((para.rank - res * (self.npp + 1)) / self.npp) + res
             if comm:
                 # set up pool communicators
-                self.comm     = comm.Split(para.rank % self.n, para.rank) # intrapool comm
-                self.rank     = self.comm.Get_rank()      # rank within the pool
-                self.roots    = range(self.n)             # a list of all the pool roots
-                roots_group   = para.MPI.Group.Incl(comm.Get_group(), self.roots)
-                self.rootcomm = comm.Create_group(roots_group) # communication among the roots of all pools
+                # define intrapool comm
+                if remainder_mode:
+                    # remainder mode
+                    self.comm = comm.Split(para.rank % self.n, para.rank) 
+                else:
+                    # contiguous mode
+                    self.comm = comm.Split(self.i, para.rank)
                 # actual pool size (npp plus residue)
                 self.size     = self.comm.Get_size()
+                self.rank     = self.comm.Get_rank()      # rank within the pool
+                # rootcomm
+                ranks = comm.gather(self.rank, root = 0)
+                ranks = comm.bcast(ranks, root = 0)
+                self.roots    = [ir for ir, r in enumerate(ranks) if r == 0]             # a list of all the pool roots
+                roots_group   = para.MPI.Group.Incl(comm.Get_group(), self.roots)
+                self.rootcomm = comm.Create_group(roots_group) # communication among the roots of all pools
             else:
                 self.comm       = None
-                self.rootcomm   = None
-                self.roots      = [0]
                 self.rank       = 0
                 self.size       = 1
+                # rootcomm
+                self.rootcomm   = None
+                self.roots      = [0]
             self.up = True
     
     def info(self):
