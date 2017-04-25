@@ -192,8 +192,7 @@ for isk in range(para.pool.nsk):
 
         # output for debug
         postfix = ''
-        if user_input.nk_use > 1:
-            postfix += '_ik{0}'.format(ik)
+        postfix += '_ik{0}'.format(ik)
         if nspin == 2:
             postfix += '_ispin{0}'.format(ispin)
         postfix += '.dat'

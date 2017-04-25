@@ -94,7 +94,7 @@ class pool_class(object):
             para.print(' {0:>4}{1:>6}{2:<6}'.format(i, len(self.pool_list[i]), '  ' + str(self.pool_list[i]).strip('[]')))
         para.print()
         
-    def set_sk_list(self, nspin = 1, nk = 1, nk_use = 1):
+    def set_sk_list_v1(self, nspin = 1, nk = 1, nk_use = 1):
         """ 
         set up a list of spin and kpoint tuples to be processed on this proc
 
@@ -119,6 +119,35 @@ class pool_class(object):
                 if offset % self.n == self.i:
                     self.sk_list.append((s, k))
                     self.sk_offset.append(offset)
+        self.nsk = len(self.sk_list)
+
+    def set_sk_list(self, nspin = 1, nk = 1, nk_use = 1):
+        """ 
+        set up a list of spin and kpoint tuples to be processed on this proc
+
+        example:
+        nspin = 2, nk = 5
+        self.n  =   3   # number of pools
+        5 / 3 = 1   # each pool at least deal with 1 k-points
+
+        pool    tuple                           offset
+           0    (0, 0), (1, 0), (0, 1), (1, 1)  0, 5, 1, 6
+           1    (0, 2), (1, 2), (0, 3), (1, 3)  2, 7, 3, 8
+           2    (0, 4), (1, 4)                  4, 9
+        """
+        self.nspin = nspin
+        self.nk = nk
+        self.nk_use = nk_use
+        self.sk_list = []
+        self.sk_offset = []
+        nk_per_pool = int(self.nk_use / self.n)
+        resk = int(self.nk_use % self.n)
+        start_k = nk_per_pool * self.i + min(resk, self.i)
+        for k in range(start_k, start_k + nk_per_pool + int(self.i < resk)):
+            for s in range(nspin):
+                offset = s * nk + k
+                self.sk_list.append((s, k))
+                self.sk_offset.append(offset)
         self.nsk = len(self.sk_list)
 
     def sk_info(self):
