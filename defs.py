@@ -249,8 +249,9 @@ class proj_class(object):
                 self.ind_excitation[get_index(key) - 1] = int(self.scf.iptblk[key])
         # self.para.print(self.ind_excitation) # debug
         self.ncore = sum(self.ind_excitation)
-        if self.x > 0: self.icore = sum(self.ind_excitation[0 : self.x])
-        self.para.print('  This is the {0}th atom among {1} core-excited atoms.\n'.format(self.icore + 1, self.ncore))
+        if self.x > 0: 
+            self.icore = sum(self.ind_excitation[0 : self.x])
+            self.para.print('  This is the {0}th atom among {1} core-excited atoms.\n'.format(self.icore + 1, self.ncore))
 
     def input_sij(self):
         """ 
