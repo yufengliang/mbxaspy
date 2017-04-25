@@ -37,6 +37,7 @@ class user_input_class(object):
 
         self.nbnd_i         = 10000
         self.nbnd_f         = 10000
+        self.nk_use         = 0         # no. of k-points used
 
         self.maxfn          = 2         # final-state shakeup order
         self.I_thr          = 1e-6      # intensity cutoff
@@ -428,7 +429,10 @@ class scf_class(object):
 
                 # initialize k-points
                 # print(self.nspin, self.nk, userin.gamma_only) # debug
-                self.nk_use = 1 if userin.gamma_only else self.nk
+                # self.nk_use = 1 if userin.gamma_only else self.nk
+                self.nk_use = userin.nk_use if userin.nk_use > 0 else self.nk
+                if self.nk_use > self.nk: para.error('Number of kpoints to be used ({0}) larger than kpoints provided ({1})'.format(self.nk_use, self.nk))
+                
                 self.kpt = kpoints_class(nk = self.nk_use)
 
                 # Check k-grid consistency between the initial and final state *** We should move this check outside 

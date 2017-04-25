@@ -192,7 +192,7 @@ for isk in range(para.pool.nsk):
 
         # output for debug
         postfix = ''
-        if not user_input.gamma_only:
+        if user_input.nk_use > 1:
             postfix += '_ik{0}'.format(ik)
         if nspin == 2:
             postfix += '_ispin{0}'.format(ispin)
@@ -224,8 +224,7 @@ if user_input.final_1p:
     if para.isroot(): sp.savetxt(spec0_f_fname, spec0_f, delimiter = ' ')
 
 if user_input.spec0_only:
-    para.print('mbxaspy done', flush = True)
-    para.stop() # debug
+    para.done() # debug
 
 ## Calculate total many-body spectra 
 
@@ -235,6 +234,8 @@ if pool.isroot():
 
     spec_xas_cvlt = [None] * nspin
     spec_xps_cvlt = [None] * nspin
+
+    pool.log(str(pool.sk_list)) # debug
 
     first = True
     # go over all the isk th elements
@@ -249,12 +250,16 @@ if pool.isroot():
                     if twin_sk in pool.sk_list:
                         ind = pool.sk_list.index(twin_sk)
                         if pool.rootcomm and pool_i_recv != pool.i:
-                            pool.rootcomm.send(spec_xps[ind], dest = pool_i_recv)
+                            pool.log('xps {0} -> {1}'.format(ind, pool_i_recv)) # debug: watch traffic
+                            pool.rootcomm.isend(spec_xps[ind], dest = pool_i_recv)
                         else:
                             spec_xps_twin = spec_xps[ind]
             # receive xps_twin if it is not on the same pool
-            if isk < len(pool.sk_list) and (1 - pool.sk_list[isk][0], pool.sk_list[isk][1]) not in pool.sk_list[isk]:
-                spec_xps_twin = pool.rootcomm.recv(source = MPI.ANY_SOURCE)
+            if isk < len(pool.sk_list) and (1 - pool.sk_list[isk][0], pool.sk_list[isk][1]) not in pool.sk_list:
+                pool.log('received data', flush = True) # debug: watch traffic
+                spec_xps_twin = pool.rootcomm.irecv(source = MPI.ANY_SOURCE)
+
+        pool.log(flush = True)
 
         if isk < len(pool.sk_list):
 
@@ -278,26 +283,29 @@ if pool.isroot():
 
         if pool.rootcomm: pool.rootcomm.barrier()
 
-# Add spectra from each k-point
-spec_xas_final = sp.zeros([spec_xas_cvlt[0].shape[0], 4 * nspin + 1])
-spec_xas_final[:, 0] = spec_xas_cvlt[0][:, 0]
-for ispin in range(nspin):
+    # Add spectra from each k-point
+    spec_xas_final = sp.zeros([spec_xas_cvlt[0].shape[0], 4 * nspin + 1])
+    spec_xas_final[:, 0] = spec_xas_cvlt[0][:, 0]
+    for ispin in range(nspin):
+        if pool.rootcomm:
+            spec_xas_final[:, 1 + ispin :: nspin] = pool.rootcomm.reduce(spec_xas_cvlt[ispin][:, 1 :: ], op = MPI.SUM)
+        if not ismpi():
+            spec_xas_final[:, 1 + ispin :: nspin] = spec_xas_cvlt[ispin][:, 1 ::]
+
+    spec_xps_final = sp.zeros([spec_xps_cvlt[0].shape[0], 2])
+    spec_xps_final[:, 0] = spec_xps_cvlt[0][:, 0]
+
+    # the two spin channels are the same for xps
     if pool.rootcomm:
-        spec_xas_final[:, 1 + ispin :: nspin] = pool.rootcomm.reduce(spec_xas_cvlt[ispin][:, 1 :: ], op = MPI.SUM)
+        spec_xps_final[:, 1] = pool.rootcomm.reduce(spec_xps_cvlt[ispin][:, 1], op = MPI.SUM)
     if not ismpi():
-        spec_xas_final[:, 1 + ispin :: nspin] = spec_xas_cvlt[ispin][:, 1 ::]
+        spec_xps_final[:, 1] = spec_xps_cvlt[ispin][:, 1]
 
-spec_xps_final = sp.zeros([spec_xps_cvlt[0].shape[0], 2])
-spec_xps_final[:, 0] = spec_xps_cvlt[0][:, 0]
-# the two spin channels are the same for xps
-if pool.rootcomm:
-    spec_xps_final[:, 1] = pool.rootcomm.reduce(spec_xps_cvlt[ispin][:, 1], op = MPI.SUM)
-if not ismpi():
-    spec_xps_final[:, 1] = spec_xps_cvlt[ispin][:, 1]
+# This requires the world root is also one of the pool roots: can be made more robust
+if para.isroot():
+    postfix = '.dat'
+    sp.savetxt(spec_xas_fname + postfix, spec_xas_final, delimiter = ' ')
+    sp.savetxt(spec_xps_fname + postfix, spec_xps_final, delimiter = ' ')
 
-# the end
-postfix = '.dat'
-sp.savetxt(spec_xas_fname + postfix, spec_xas_final, delimiter = ' ')
-sp.savetxt(spec_xps_fname + postfix, spec_xps_final, delimiter = ' ')
-
+para.done()
 # Bye ! ~

@@ -22,6 +22,7 @@ class pool_class(object):
         self.para = para
         self.pool_list = []
         self.up = False
+        self.msg = ''
 
     def set_pool(self, nproc_per_pool = 1):
         """ 
@@ -130,7 +131,11 @@ class pool_class(object):
         else:
             self.sk_list_all = [self.sk_list]
         self.sk_list_maxl = max([len(skl) for skl in self.sk_list_all])
-        
+        para.print("{0:>5}     {1:<}".format('pool', 'sk-tuple'))
+        for i, skl in enumerate(self.sk_list_all):
+            para.print("{0:>5}     {1:<}".format(i, str(skl).strip('[]')), flush = True)
+        para.print()
+
     def isroot(self):
         """ is this the root of the current pool ? """
         if self.para.rank in self.roots: return True
@@ -141,6 +146,23 @@ class pool_class(object):
         if self.isroot():
             print(msg) 
             if flush: sys.stdout.flush()
+
+    def log(self, msg = '', flush = False):
+        """ log messages from each proc and print on demand """
+        if len(msg) > 0:
+            self.msg += msg + '\n'
+        if flush:
+            if self.rootcomm: 
+                msgs = self.rootcomm.gather(self.msg, root = 0)
+                if self.rootcomm.Get_rank() == 0:
+                    for i, m in enumerate(msgs):
+                        if len(m) > 0:
+                            print('pool {0}:\n'.format(i) + m)
+            else:
+                print(self.msg)
+            self.msg = ''
+            sys.stdout.flush()
+
 
 class para_class(object):
     """ para class: wrap up user-defined mpi variables for parallelization """
@@ -159,6 +181,7 @@ class para_class(object):
             self.size = 1
             self.rank = 0
 
+        self.msg = '' # message recorded
         # initialize pool for k-points
         self.pool = pool_class(self)
 
@@ -186,12 +209,33 @@ class para_class(object):
             # non-mpi
             sys.exit(0)
 
+    def done(self):
+        self.print('mbxaspy done', flush = True)
+        self.stop()
+
     def error(self, msg = ''):
         """ print error message and quit """
         self.print('Error: ' + msg + '\nHalt.', flush = True)
         self.stop()
 
+    def log(self, msg = '', flush = False):
+        """ log messages from each proc and print on demand """
+        if len(msg) > 0:
+            self.msg += msg + '\n'
+        if flush:
+            if self.comm: 
+                msgs = self.comm.gather(self.msg, root = 0)
+                if self.comm.Get_rank() == 0:
+                    for i, m in enumerate(msgs):
+                        if len(m) > 0:
+                            print('proc {0}:\n'.format(i) + m)
+            else:
+                print(self.msg)
+            sys.stdout.flush()
+            self.msg = ''
+   
     def sep_line(self, sep = main_sepl):
+        """ separation line"""
         self.print(sep)
 
 
