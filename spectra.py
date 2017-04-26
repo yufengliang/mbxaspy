@@ -153,6 +153,10 @@ def xmat_to_sticks(scf, ixyz_list, nocc = 0, offset = 0.0, evec = None):
     return sticks
 
 
+def same_axis(self, other):
+    if len(self.ener_axis) != len(other.ener_axis) or any(abs(self.ener_axis - other.ener_axis) > zero_thr): return False
+    else: return True
+
 def add_I(I1, I2):
     """ 
     Add two 2D arrays.
@@ -238,3 +242,13 @@ class spec_class(object):
         #    new_sticks = sticks_filter(sticks, sticks_thr, max_sticks)
         #    self.sticks_all += new_sticks
 
+    def savetxt(self, fname, offset = 0.0):
+         sp.savetxt(fname, sp.concatenate( ( sp.matrix(self.ener_axis + offset).T, self.I ), axis = 1), 
+                    delimiter = ' ', fmt = '%.6e')
+
+    def __add__(self, other):
+        if not same_axis(self, other):
+            raise IndexError('cannot add spectra with different energy axes.')
+        spec = spec_class(ener_axis = self.ener_axis)
+        spec.I = add_I(self.I, other.I)
+        return spec

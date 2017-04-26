@@ -215,13 +215,16 @@ for isk in range(pool.nsk):
 if ismpi() and para.pool.isroot():
     spec0_i[:, 1 : ] = para.pool.rootcomm.reduce(spec0_i[:, 1 : ], op = MPI.SUM)
 
-if para.isroot(): sp.savetxt(spec0_i_fname, spec0_i[0].I, delimiter = ' ')
+if para.isroot(): spec0_i[0].savetxt(spec0_i_fname)
 
 # final-state one-body
 if user_input.final_1p:
     if ismpi() and para.pool.isroot():
         spec0_f[:, 1 : ] = para.pool.rootcomm.reduce(spec0_f[:, 1 : ], op = MPI.SUM) 
-    if para.isroot(): sp.savetxt(spec0_f_fname, spec0_f[0].I, delimiter = ' ')
+    if para.isroot(): spec0_f[0].savetxt(spec0_f_fname)
+
+# spec0_sum = spec0_i[0] + spec0_f[0] # test operator overload
+# spec0_sum.savetxt('spec0_sum.dat')
 
 if user_input.spec0_only:
     para.done() # debug
