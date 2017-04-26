@@ -252,3 +252,14 @@ class spec_class(object):
         spec = spec_class(ener_axis = self.ener_axis)
         spec.I = add_I(self.I, other.I)
         return spec
+
+    def __or__(self, other):
+        if not same_axis(self, other):
+            raise IndexError('cannot alternate spectra with different energy axes.')
+        if self.ncol ! = other.ncol:
+            raise IndexError('cannot alternate spectra with different no. of cols ({0}, {1}). '.format(self.ncol, other.ncol))
+        spec = spec_class(ener_axis = self.ener_axis)
+        spec.I = sp.zeros((self.nener, self.ncol * 2))
+        spec.I[:, 0 :: 2] = self.I
+        spec.I[:, 1 :: 2] = other.I
+        return spec

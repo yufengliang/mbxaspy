@@ -215,13 +215,17 @@ for isk in range(pool.nsk):
 if ismpi() and pool.isroot():
     spec0_i[:, 1 : ] = pool.rootcomm.reduce(spec0_i[:, 1 : ], op = MPI.SUM)
 
-if para.isroot(): spec0_i[0].savetxt(spec0_i_fname)
+if nspin == 1: spec0_i = spec0_i[0]
+else:   spec0_i = spec0_i[0] | spec0_i[1]
+if para.isroot(): spec0_i.savetxt(spec0_i_fname)
 
 # final-state one-body
 if user_input.final_1p:
     if ismpi() and pool.isroot():
         spec0_f[:, 1 : ] = pool.rootcomm.reduce(spec0_f[:, 1 : ], op = MPI.SUM) 
-    if para.isroot(): spec0_f[0].savetxt(spec0_f_fname)
+    if nspin == 1: spec0_f = spec0_f[0]
+    else:   spec0_f = spec0_f[0] | spec0_f[1]
+    if para.isroot(): spec0_f.savetxt(spec0_f_fname)
 
 # spec0_sum = spec0_i[0] + spec0_f[0] # test operator overload
 # spec0_sum.savetxt('spec0_sum.dat')
