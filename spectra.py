@@ -264,3 +264,7 @@ class spec_class(object):
         spec.I[:, 0 :: 2] = self.I
         spec.I[:, 1 :: 2] = other.I
         return spec
+
+    def mp_sum(self, comm = None):
+        if comm and comm != MPI.COMM_NULL:
+            self.I = comm.allreduce(self.I, op = MPI.SUM) # check if allreduce works for older mpi4py

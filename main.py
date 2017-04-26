@@ -102,10 +102,9 @@ for isk in range(pool.nsk):
 
         para.print('  Calculating many-body spectra ... ')
 
-        # Compute the transformation matrix xi
+        ## Compute the transformation matrix xi
         xi = compute_xi(iscf, fscf)
 
-        #para.print(xi) # debug
         if user_input.xi_analysis and para.isroot() and ik == 0:
             # plot_xi(xi) # debug
             if nspin > 1:
@@ -212,19 +211,20 @@ for isk in range(pool.nsk):
 ## Output Spectra
 
 # intial-state one-body
-if ismpi() and pool.isroot():
-    spec0_i[:, 1 : ] = pool.rootcomm.reduce(spec0_i[:, 1 : ], op = MPI.SUM)
+for ispin in range(nspin): spec0_i[ispin].mp_sum(pool.rootcomm) 
 
 if nspin == 1: spec0_i = spec0_i[0]
-else:   spec0_i = spec0_i[0] | spec0_i[1]
+else:   spec0_i = spec0_i[0] | spec0_i[1] # mix spin up and down
+
 if para.isroot(): spec0_i.savetxt(spec0_i_fname)
 
 # final-state one-body
 if user_input.final_1p:
-    if ismpi() and pool.isroot():
-        spec0_f[:, 1 : ] = pool.rootcomm.reduce(spec0_f[:, 1 : ], op = MPI.SUM) 
+    for ispin in range(nspin): spec0_f[ispin].mp_sum(pool.rootcomm) 
+
     if nspin == 1: spec0_f = spec0_f[0]
-    else:   spec0_f = spec0_f[0] | spec0_f[1]
+    else:   spec0_f = spec0_f[0] | spec0_f[1] # mix spin up and down
+
     if para.isroot(): spec0_f.savetxt(spec0_f_fname)
 
 # spec0_sum = spec0_i[0] + spec0_f[0] # test operator overload
