@@ -192,7 +192,8 @@ class spec_class(object):
         else:
             self.dE = (hi - lo) / nener
             self.ener_axis = sp.array([e * self.dE for e in range(int(lo / self.dE) - 1, int(hi / self.dE) + 2)])
-        self.nener = len(self.ener_axis)
+        self.lener = len(self.ener_axis)
+        self.nener = self.lener - 1
         # indicate where is zero. Ideally, self.lo < 0 and self.hi > 0
         self.zero_ind = min(range(len(self.ener_axis)), key = lambda i : abs(self.ener_axis[i])) 
         self.I = None
@@ -213,9 +214,9 @@ class spec_class(object):
         """
 
         ncol = len(sticks[0]) - 2
-        new_spec = sp.zeros([self.nener, ncol])
+        new_spec = sp.zeros([self.lener, ncol])
         for i, stick in enumerate(sticks):
-            xslice = slice(0, self.nener)
+            xslice = slice(0, self.lener)
             # Narrow down the range if doing guassian
             if spec_info.smearing == 'gauss':
                 smear_func = gaussian
@@ -259,7 +260,7 @@ class spec_class(object):
         if self.ncol ! = other.ncol:
             raise IndexError('cannot alternate spectra with different no. of cols ({0}, {1}). '.format(self.ncol, other.ncol))
         spec = spec_class(ener_axis = self.ener_axis)
-        spec.I = sp.zeros((self.nener, self.ncol * 2))
+        spec.I = sp.zeros((self.lener, self.ncol * 2))
         spec.I[:, 0 :: 2] = self.I
         spec.I[:, 1 :: 2] = other.I
         return spec
