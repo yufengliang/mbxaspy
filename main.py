@@ -54,7 +54,7 @@ ixyz_list = [-1, 0, 1, 2] # user_input.ixyz_list
 ## loop over spin and kpoints
 for isk in range(pool.nsk):
 
-    ispin, ik  = para.pool.sk_list[isk] # acquire current spin
+    ispin, ik  = pool.sk_list[isk] # acquire current spin
 
     para.sep_line()
     para.print(' Processing (ispin, ik) = ({0},{1}) \n'.format(ispin, ik))
@@ -121,7 +121,7 @@ for isk in range(pool.nsk):
                                  fix_v1 = False, maxfn = user_input.maxfn - 1,
                                  I_thr = user_input.I_thr,
                                  e_lo_thr = user_input.ELOW, e_hi_thr = user_input.EHIGH, 
-                                 comm = para.pool.comm, 
+                                 comm = pool.comm, 
                                  zeta_analysis = user_input.zeta_analysis and ik == 0)
 
         first = True
@@ -164,7 +164,7 @@ for isk in range(pool.nsk):
                                      fix_v1 = True, maxfn = user_input.maxfn,
                                      I_thr = user_input.I_thr,
                                      e_lo_thr = user_input.ELOW, e_hi_thr = user_input.EHIGH, 
-                                     comm = para.pool.comm, 
+                                     comm = pool.comm, 
                                      zeta_analysis = user_input.zeta_analysis and ik == 0)
 
             col = 2 + ixyz
@@ -212,15 +212,15 @@ for isk in range(pool.nsk):
 ## Output Spectra
 
 # intial-state one-body
-if ismpi() and para.pool.isroot():
-    spec0_i[:, 1 : ] = para.pool.rootcomm.reduce(spec0_i[:, 1 : ], op = MPI.SUM)
+if ismpi() and pool.isroot():
+    spec0_i[:, 1 : ] = pool.rootcomm.reduce(spec0_i[:, 1 : ], op = MPI.SUM)
 
 if para.isroot(): spec0_i[0].savetxt(spec0_i_fname)
 
 # final-state one-body
 if user_input.final_1p:
-    if ismpi() and para.pool.isroot():
-        spec0_f[:, 1 : ] = para.pool.rootcomm.reduce(spec0_f[:, 1 : ], op = MPI.SUM) 
+    if ismpi() and pool.isroot():
+        spec0_f[:, 1 : ] = pool.rootcomm.reduce(spec0_f[:, 1 : ], op = MPI.SUM) 
     if para.isroot(): spec0_f[0].savetxt(spec0_f_fname)
 
 # spec0_sum = spec0_i[0] + spec0_f[0] # test operator overload
