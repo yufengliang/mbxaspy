@@ -22,7 +22,6 @@ class user_input_class(object):
         self.mol_name_i     = 'mol_name'
         self.mol_name_f     = 'xatom'
         self.xas_arg        = 5
-        self.nbnd           = 0
         self.nelec          = 0
         self.scf_type       = 'shirley_xas'
         self.nproc_per_pool = 1
@@ -40,7 +39,7 @@ class user_input_class(object):
         self.nk_use         = 0         # no. of k-points used
 
         self.maxfn          = 2         # final-state shakeup order
-        self.I_thr          = 1e-6      # intensity cutoff
+        self.I_thr          = 1e-3      # intensity cutoff
         
         # control flags
         self.gamma_only     = False         # Using Gamma-point only
@@ -295,14 +294,16 @@ class scf_class(object):
     def __init__(self):
         sp = self.sp
         # variable list and default values
-        self.nbnd   = 0                         # number of bands    
-        self.nk     = 0                         # number of k-points
-        self.nk_use = 0                         # number of k-points to be used
-        self.nelec  = 0                         # number of electrons
-        self.ncp    = 1                         # number of core levels
-        self.nspin  = 1                         # number of spins
-        self.nbasis = 1                         # number of basis
-        self.xmat   = sp.array([])              # single-particle matrix elements
+        self.nbnd       = 0                         # number of bands    
+        self.nbnd_use   = 0                         # number of bands used actually  
+        self.nk         = 0                         # number of k-points
+        self.nk_use     = 0                         # number of k-points to be used
+        self.nelec      = 0                         # number of electrons
+        self.ncp        = 1                         # number of core levels
+        self.nspin      = 1                         # number of spins
+        self.nbasis     = 1                         # number of basis
+        self.xmat       = sp.array([])              # single-particle matrix elements
+        self.e_lowest   = None                      # the energy of the lowest-lying empty/partiall occupied state in this scf
 
 
     def input_xmat(self, fh, offset, sk_offset, is_initial = True):
@@ -323,7 +324,7 @@ class scf_class(object):
         self.xmat = self.sp.array(self.xmat).reshape(nxyz, self.ncp, self.nbnd).T
         
 
-    def input_shirley(self, is_initial = True, isk = 0):
+    def input_shirley(self, is_initial = True, isk = 0, nelec = -1):
         """ 
         input from shirley xas
 
@@ -336,6 +337,8 @@ class scf_class(object):
         isk: the index of the spin-k-point block to be input
              isk == 0 indicates this is the first time reading the data and 
              we need to extract the basic scf information from the *.info file.
+        
+        nelec: overwrite no. of electrons
         """
         para    = self.para
         userin  = self.userin
@@ -345,8 +348,7 @@ class scf_class(object):
         else: postfix = '_f'
         
         # construct the path to the scf calculation and the file prefix
-        path = getattr(userin, 'path' + postfix)
-        mol_name = getattr(userin, 'mol_name' + postfix)
+        path, mol_name, nbnd_use = tuple([getattr(userin, _ + postfix) for _ in ['path', 'mol_name', 'nbnd']])
 
         # import Input_Block.in and TMP_INPUT* from shirley_xas calculation if the first time to read
         if isk < 0:
@@ -415,14 +417,21 @@ class scf_class(object):
                         para.print(' Variable "' + var + '" missed in ' + fname, flush = True)
                         para.stop()
 
+                # adjust the no. of bands actually used
+                self.nbnd_use = nbnd_use if 0 < nbnd_use < self.nbnd else self.nbnd
+
                 # print out basis information
                 info_str = ('  number of bands (nbnd)                    = {0}\n'\
-                         +  '  number of spins (nspin)                   = {1}\n'\
-                         +  '  number of k-points (nk)                   = {2}\n'\
-                         +  '  number of electrons (nelec)               = {3}\n'\
-                         +  '  number of optimal-basis function (nbasis) = {4}\n'\
-                           ).format(self.nbnd, self.nspin, self.nk, self.nelec, self.nbasis)
+                         +  '  number of bands used (nbnd_use)           = {1}\n'\
+                         +  '  number of spins (nspin)                   = {2}\n'\
+                         +  '  number of k-points (nk)                   = {3}\n'\
+                         +  '  number of electrons (nelec)               = {4}\n'\
+                         +  '  number of optimal-basis function (nbasis) = {5}\n'\
+                           ).format(self.nbnd, self.nbnd_use, self.nspin, self.nk, self.nelec, self.nbasis)
                 para.print(info_str)
+
+                # overwrite no. of electrons
+                if nelec > 0: self.nelec = nelec
 
                 # check no. of electrons
                 if self.nelec > self.nbnd * 2:
@@ -471,7 +480,12 @@ class scf_class(object):
                 if isk < 0:
                     # determine the occupation number for each k-point
                     if self.nspin == 1:
-                        self.nocc = self.nelec / 2.0
+                        nocc = self.nocc = self.nelec / 2.0
+                        for k in range(self.nk_use):
+                            offset = k
+                            self.obf.input_eigval(fh, offset, output_msg = False)
+                            if not self.e_lowest or self.obf.eigval[int(nocc)] < self.e_lowest:
+                                self.e_lowest = self.obf.eigval[int(nocc)]
                     else:
                         self.nocc = []
                         for k in range(self.nk_use):
@@ -481,7 +495,12 @@ class scf_class(object):
                                 self.obf.input_eigval(fh, offset, output_msg = False)
                                 eigval[s] = list(self.obf.eigval)
                             # occupation numbers for spin up and down channels for this k
-                            self.nocc.append(find_nocc(eigval, self.nelec))
+                            nocc = find_nocc(eigval, self.nelec)
+                            self.nocc.append(nocc)
+                            emin = min(eigval[0][int(nocc[0])], eigval[1][int(nocc[1])])
+                            if not self.e_lowest or emin < self.e_lowest:
+                                self.e_lowest = emin
+                    para.print('  Energy of LUMO: {0} eV '.format(self.e_lowest))
 
                 if isk >= 0:
                     para.print('  Band energies (eV): ')
@@ -531,11 +550,11 @@ class scf_class(object):
             fh.close()
         
         
-    def input(self, is_initial = True, isk = -1):
+    def input(self, is_initial = True, isk = -1, nelec = -1):
         """ input from one shirley run """
         if self.userin.scf_type == 'shirley_xas':
             if isk < 0: self.para.print(' Wavefunctions and energies will be imported from shirley_xas calculation. \n ')
-            self.input_shirley(is_initial, isk)
+            self.input_shirley(is_initial, isk, nelec)
         else:
             self.para.error(' Unsupported scf input: ' + scf_type)
             

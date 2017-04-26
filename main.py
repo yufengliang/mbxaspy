@@ -23,7 +23,7 @@ iscf.input(isk = -1)
 # Check the final-state scf calculations
 para.sep_line()
 para.print(' Checking final-state scf from: \n ' + user_input.path_f + '\n')
-fscf.input(is_initial = False, isk = -1)
+fscf.input(is_initial = False, isk = -1, nelec = iscf.nelec)
 
 # Important: Need to tell iscf the index of core
 if user_input.scf_type == 'shirley_xas':
@@ -43,8 +43,16 @@ if not user_input.spec0_only:
     spec_xas = []
 
 nspin = iscf.nspin
-# loop over spin and kpoints
-for isk in range(para.pool.nsk):
+
+# initialize the energy axis for spectra
+global_ener_axis = spec_class(user_input).ener_axis
+if para.isroot(): sp.savetxt('ener_axis.dat', global_ener_axis) # debug
+spec0_i = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
+if user_input.final_1p: spec0_f = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
+ixyz_list = [-1, 0, 1, 2] # user_input.ixyz_list
+
+## loop over spin and kpoints
+for isk in range(pool.nsk):
 
     ispin, ik  = para.pool.sk_list[isk] # acquire current spin
 
@@ -52,7 +60,7 @@ for isk in range(para.pool.nsk):
     para.print(' Processing (ispin, ik) = ({0},{1}) \n'.format(ispin, ik))
 
     # weight the sticks according to the k-grid
-    weight =  iscf.kpt.weight[ik]; 
+    weight = iscf.kpt.weight[ik]; 
     prefac = weight * Ryd
     # para.print('weight = {0}'.format(weight)) # debug
 
@@ -72,29 +80,24 @@ for isk in range(para.pool.nsk):
     if nspin == 1: nocc = iscf.nocc
     else: nocc = iscf.nocc[ik][ispin]
 
-    # Compute non-interacting spectra *** should I put it in a def ?
+    ## Compute non-interacting spectra *** should I put it in a def ?
     para.print('  Calculating one-body spectra ...\n', flush = True)
-    for ixyz in range(3):
-        # *** currently only x, y, z
-        ener_axis, spec0 = spectrum0(iscf, ixyz, nocc, user_input.smearing)
-        ener_axis += user_input.ESHIFT_FINAL
-        # print(ener_axis.shape, spec0.shape) # debug
-        if isk == 0 and ixyz == 0:
-            # initialize spectra and energy axis
-            spec0_i = sp.zeros([len(ener_axis), nspin * 4 + 1]) # ener (total x y z) * nspin
-            spec0_i[:, 0] = ener_axis
-            if user_input.final_1p: spec0_f = spec0_i.copy()
-        col = (1 + ixyz) * iscf.nspin + (ispin + 1)
-        spec0 *= prefac
-        spec0_i[:, col] += spec0
-        spec0_i[:, ispin + 1] += spec0 # angular average
-        if user_input.final_1p:
-            ener_axis, spec0 \
-            = spectrum0(fscf, ixyz, nocc, user_input.smearing)
-            spec0 *= prefac
-            spec0_f[:, col] += spec0
-            spec0_f[:, ispin + 1] += spec0 # angular average
 
+    # sticks = xmat_to_sticks(iscf, [-2], nocc, evec = [1.0, 0.0, 0.0]) # debug
+    # print(sticks[0]) debug
+
+    # initial-state
+    sticks = xmat_to_sticks(iscf, ixyz_list, nocc, offset = -fscf.e_lowest)
+    spec0_i[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
+
+    # final-state
+    if user_input.final_1p:
+        sticks = xmat_to_sticks(fscf, ixyz_list, nocc, offset = -fscf.e_lowest)
+        spec0_f[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
+    
+    para.print('  One-body spectra finished.')
+
+    ## Compute many-body spectra
     if not user_input.spec0_only:
 
         para.print('  Calculating many-body spectra ... ')
@@ -209,18 +212,16 @@ for isk in range(para.pool.nsk):
 ## Output Spectra
 
 # intial-state one-body
-spec0_i[:, 1 : 1 + nspin] /= 3.0
 if ismpi() and para.pool.isroot():
     spec0_i[:, 1 : ] = para.pool.rootcomm.reduce(spec0_i[:, 1 : ], op = MPI.SUM)
 
-if para.isroot(): sp.savetxt(spec0_i_fname, spec0_i, delimiter = ' ')
+if para.isroot(): sp.savetxt(spec0_i_fname, spec0_i[0].I, delimiter = ' ')
 
 # final-state one-body
 if user_input.final_1p:
-    spec0_f[:, 1 : 1 + nspin] /= 3.0
     if ismpi() and para.pool.isroot():
         spec0_f[:, 1 : ] = para.pool.rootcomm.reduce(spec0_f[:, 1 : ], op = MPI.SUM) 
-    if para.isroot(): sp.savetxt(spec0_f_fname, spec0_f, delimiter = ' ')
+    if para.isroot(): sp.savetxt(spec0_f_fname, spec0_f[0].I, delimiter = ' ')
 
 if user_input.spec0_only:
     para.done() # debug
