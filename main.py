@@ -46,9 +46,15 @@ nspin = iscf.nspin
 
 # initialize the energy axis for spectra
 global_ener_axis = spec_class(user_input).ener_axis
-if para.isroot(): sp.savetxt('ener_axis.dat', global_ener_axis) # debug
+# if para.isroot(): sp.savetxt('ener_axis.dat', global_ener_axis) # debug
+
+# global energy shift
+global_offset = user_input.ESHIFT_FINAL + fscf.e_lowest
+
+# initialize i and f spec0
 spec0_i = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
 if user_input.final_1p: spec0_f = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
+
 ixyz_list = [-1, 0, 1, 2] # user_input.ixyz_list
 
 ## loop over spin and kpoints
@@ -216,7 +222,7 @@ for ispin in range(nspin): spec0_i[ispin].mp_sum(pool.rootcomm)
 if nspin == 1: spec0_i = spec0_i[0]
 else:   spec0_i = spec0_i[0] | spec0_i[1] # mix spin up and down
 
-if para.isroot(): spec0_i.savetxt(spec0_i_fname)
+if para.isroot(): spec0_i.savetxt(spec0_i_fname, offset = global_offset)
 
 # final-state one-body
 if user_input.final_1p:
@@ -225,7 +231,7 @@ if user_input.final_1p:
     if nspin == 1: spec0_f = spec0_f[0]
     else:   spec0_f = spec0_f[0] | spec0_f[1] # mix spin up and down
 
-    if para.isroot(): spec0_f.savetxt(spec0_f_fname)
+    if para.isroot(): spec0_f.savetxt(spec0_f_fname, offset = global_offset)
 
 # spec0_sum = spec0_i[0] + spec0_f[0] # test operator overload
 # spec0_sum.savetxt('spec0_sum.dat')
