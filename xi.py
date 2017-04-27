@@ -86,10 +86,10 @@ def plot_xi(xi):
     
     sp: scipy or numpy
     """
-    heatmap = plt.pcolor(abs(sp.array(xi)), cmap = 'seismic')
+    heatmap = plt.imshow(abs(sp.array(xi)), cmap = 'seismic')
     plt.axis([0, xi.shape[1], 0, xi.shape[0]])
     plt.axes().set_aspect('equal')
-    plt.savefig('test_xi.eps', format = 'eps', dpi = 1000)
+    plt.savefig('xi.eps', format = 'png')
     plt.close()
 
 def eig_analysis_xi(xi, postfix = ''):
@@ -106,9 +106,9 @@ def eig_analysis_xi(xi, postfix = ''):
     plt.stem(out_eigval)
     plt.xlim([-1, size])
     #plt.savefig('test_xi_eig.eps', format = 'eps', dpi = 1000)
-    plt.savefig('test_xi_eig{0}.png'.format(postfix), format = 'png')
+    plt.savefig('xi_eig{0}.png'.format(postfix), format = 'png')
     plt.close()
-    sp.savetxt('test_xi_eig{0}.dat'.format(postfix), out_eigval, delimiter = ' ')
+    sp.savetxt('xi_eig{0}.dat'.format(postfix), out_eigval, delimiter = ' ')
     # Analyze eigenvalues and return a message
     msg = ''
     return msg

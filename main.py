@@ -116,8 +116,12 @@ for isk in range(pool.nsk):
         para.print('  Calculating transformation matrix xi ... ')
         xi = compute_xi(iscf, fscf)
 
+        size = min(xi.shape)
+        xi_eigvals = la.eigvals(xi[: size, : size])
+        para.print('  Average of the eigenvalues of xi: {}'.format( sp.sum(abs(xi_eigvals)) / size ))
+
         if user_input.xi_analysis and para.isroot() and ik == 0:
-            # plot_xi(xi) # debug
+            plot_xi(xi) # debug
             if nspin > 1:
                 msg = eig_analysis_xi(xi, '_spin_{0}'.format(ispin)) # debug
             else:
