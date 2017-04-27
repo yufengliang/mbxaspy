@@ -314,7 +314,7 @@ class spec_class(object):
             e2_hi = ie + other.zero_ind - (e1_lo - 1)
             # only use the 1st col of the second spec
             spec.I[ie, :] = sp.dot(other.I[range(e2_hi, e2_lo, -1), 0],
-                                    self.I[range(e1_lo, e1_hi,  1), :])
+                                    self.I[range(e1_lo, e1_hi,  1), :]) * other.dE
         return spec
 
     def __imul__(self, other):
