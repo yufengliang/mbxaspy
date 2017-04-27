@@ -32,10 +32,11 @@ class user_input_class(object):
         self.ESHIFT_FINAL   = 0.0       # eV
         self.NENER          = 100       # eV
         self.SIGMA          = 0.2       # eV
+        self.EVEC           = None      # electric field vector E
         self.smearing       = 'gauss'   # gauss or lor (lorentzian)
 
-        self.nbnd_i         = 10000
-        self.nbnd_f         = 10000
+        self.nbnd_i         = nbnd_max
+        self.nbnd_f         = nbnd_max
         self.nk_use         = 0         # no. of k-points used
 
         self.maxfn          = 2         # final-state shakeup order
@@ -55,10 +56,9 @@ class user_input_class(object):
         if isanaconda():
             try:
                 userin = open(sys.argv[1], 'r')
-                para.print(' Reading user input from ' + sys.argv[1] + ' ...\n')
+                para.print(' Reading user input from {0}\n'.format(sys.argv[1]))
             except IOError:
-                para.print(" Can't open user-defined input " + sys.argv[1] + " Halt. ", flush = True)
-                para.stop()
+                para.error(" Can't open user-defined input {0}" .format(sys.argv[1]))
         else: userin = sys.stdin
         lines = userin.read()
         var_input = input_arguments(lines)
@@ -71,6 +71,14 @@ class user_input_class(object):
                 pass
         self.path_i = os.path.abspath(self.path_i)
         self.path_f = os.path.abspath(self.path_f)
+
+        # convert str EVEC into a list
+        if self.EVEC is not None:
+            try:
+                evec = [float(e) for e in self.EVEC.split()]:
+                self.EVEC = evec  
+            except:
+                para.error(" E-field vector not correct. ")
 
         if not para.comm: self.nproc_per_pool = 1
         # para.print(vars(self)) # debug

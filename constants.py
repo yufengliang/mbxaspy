@@ -16,6 +16,8 @@ data_set = {'integer' : (4, 'i'), 'float' : (4, 'f') , 'double' : (8, 'd'), 'com
 # number of transition operators (dipole + quadrupole)
 nxyz = 9
 
+nbnd_max = 10000
+
 # threshold
 small_thr = 1e-8
 zero_thr = 1e-16

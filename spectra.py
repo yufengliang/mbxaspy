@@ -153,6 +153,16 @@ def xmat_to_sticks(scf, ixyz_list, nocc = 0, offset = 0.0, evec = None):
     return sticks
 
 
+def Af_to_sticks(Af):
+    """
+    Given the final-state amplitudy Af, return a stick array:
+    sticks: [[energy, "info", os_1, os_2, os_3, ...], ...]
+    
+    Af: a dictionary of array([energy, amplitude])
+    """
+    return [ [ complex(Af[conf][0]).real, conf, float(abs(Af[conf][1]) ** 2) ] for conf in Af]
+
+
 def same_axis(self, other):
     if len(self.ener_axis) != len(other.ener_axis) or any(abs(self.ener_axis - other.ener_axis) > zero_thr): return False
     else: return True
@@ -213,7 +223,7 @@ class spec_class(object):
         max_sticks  : maximum no. sticks to save
         """
 
-        ncol = len(sticks[0]) - 2
+        ncol = len(sticks[0]) - 2 if len(sticks) > 0 else 1 # 1 column for no stick
         new_spec = sp.zeros([self.lener, ncol])
         for i, stick in enumerate(sticks):
             xslice = slice(0, self.lener)
@@ -248,13 +258,19 @@ class spec_class(object):
                     delimiter = ' ', fmt = '%.6e')
 
     def __add__(self, other):
+        """ define spec1 + spec2 """
         if not same_axis(self, other):
             raise IndexError('cannot add spectra with different energy axes.')
         spec = spec_class(ener_axis = self.ener_axis)
         spec.I = add_I(self.I, other.I)
+        spec.ncol = max(self.ncol, other.ncol)
         return spec
 
     def __or__(self, other):
+        """ 
+        define spec1 | spec2
+        Alternate columns of spec1.I and spec2.I
+        """
         if not same_axis(self, other):
             raise IndexError('cannot alternate spectra with different energy axes.')
         if self.ncol != other.ncol:
@@ -263,8 +279,56 @@ class spec_class(object):
         spec.I = sp.zeros((self.lener, self.ncol * 2))
         spec.I[:, 0 :: 2] = self.I
         spec.I[:, 1 :: 2] = other.I
+        spec.ncol = spec.I.shape[1]
         return spec
 
+    def __mul__(self, other):
+        """
+        define spec1 * spec2
+        This is the spectral convolution:
+        spec(E) = integrate dE' spec1(E - E') spec2(E')
+
+        Let's zero_ind = 4 for I1 and I2, then the convoluted intensity at ind = 7 is:
+
+        I[7] = ( ... + I1[8] * I2[3] +  I1[7] * I2[4] + I1[6] * I2[5] + ... ) dE
+        
+        index relations:
+        ie + zero_ind = ie1 + ie2
+
+        0 <= ie1, ie2 < lener, then
+        0 <= ie + zero_ind - ie1 < lener, so
+        ie + zero_ind - lener < ie1 <= ie + zero_ind, so
+        
+        max(ie + zero_ind - lener + 1, 0) <= ie1 < min(ie + zero_ind + 1, lener)
+        
+        """
+        if not same_axis(self, other):
+            raise IndexError('cannot convolute spectra with different energy axes.')
+        spec = spec_class(ener_axis = self.ener_axis)
+        spec.I = sp.zeros(self.I.shape)
+        spec.ncol = self.ncol
+        for ie in range(self.lener):
+            e1_lo = max(ie + other.zero_ind + 1 - self.lener, 0)
+            e1_hi = min(ie + other.zero_ind + 1, self.lener)
+            e2_lo = ie + other.zero_ind - (e1_hi - 1)
+            e2_hi = ie + other.zero_ind - (e1_lo - 1)
+            # only use the 1st col of the second spec
+            spec.I[ie, :] = sp.dot(other.I[range(e2_hi, e2_lo, -1), 0],
+                                    self.I[range(e1_lo, e1_hi,  1), :])
+        return spec
+
+    def __imul__(self, other):
+        """ is this meaningful  ? """
+        return self * other
+
     def mp_sum(self, comm = None):
+        """ sum and bcast I within given comm """
         if comm and comm != MPI.COMM_NULL:
             self.I = comm.allreduce(self.I, op = MPI.SUM) # check if allreduce works for older mpi4py
+
+
+    def average(self, cols = [], target_col = 0):
+        """
+        Take the average of the given cols and put it into target_col
+        """
+        self.I[:, target_col] = sp.average(self.I[:, cols], axis = 1)

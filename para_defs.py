@@ -244,16 +244,16 @@ class para_class(object):
         if flush:
             sys.stdout.flush()
 
-
     def stop(self):
         """ stop the code """
         if self.comm is not None:
-            # in mpi
-            # self.comm.Abort(0)
             self.MPI.Finalize()
-            sys.exit(0)
+        sys.exit(0)
+
+    def exit(self):
+        if self.comm is not None:
+            self.comm.Abort(0)
         else:
-            # non-mpi
             sys.exit(0)
 
     def done(self):

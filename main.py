@@ -56,6 +56,10 @@ spec0_i = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
 if user_input.final_1p: spec0_f = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
 
 ixyz_list = [-1, 0, 1, 2] # user_input.ixyz_list
+# for many-body
+ixyz_list_mb = ixyz_list[:]
+if -1 in ixyz_list:
+    for ixyz in [0, 1, 2]: if ixyz not in ixyz_list: ixyz_list_mb.append(ixyz)
 
 ## loop over spin and kpoints
 for isk in range(pool.nsk):
@@ -93,15 +97,15 @@ for isk in range(pool.nsk):
     # print(sticks[0]) debug
 
     # initial-state
-    sticks = xmat_to_sticks(iscf, ixyz_list, nocc, offset = -fscf.e_lowest)
+    sticks = xmat_to_sticks(iscf, ixyz_list, nocc, offset = -fscf.e_lowest, evec = user_input.EVEC)
     spec0_i[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
 
     # final-state
     if user_input.final_1p:
-        sticks = xmat_to_sticks(fscf, ixyz_list, nocc, offset = -fscf.e_lowest)
+        sticks = xmat_to_sticks(fscf, ixyz_list, nocc, offset = -fscf.e_lowest, evec = user_input.EVEC)
         spec0_f[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
     
-    para.print('  One-body spectra finished.')
+    para.print('  One-body spectra finished.', flush = True)
 
     ## Compute many-body spectra
     if not user_input.spec0_only:
@@ -109,6 +113,7 @@ for isk in range(pool.nsk):
         para.print('  Calculating many-body spectra ... ')
 
         ## Compute the transformation matrix xi
+        para.print('  Calculating transformation matrix xi ... ')
         xi = compute_xi(iscf, fscf)
 
         if user_input.xi_analysis and para.isroot() and ik == 0:
@@ -117,6 +122,8 @@ for isk in range(pool.nsk):
                 msg = eig_analysis_xi(xi, '_spin_{0}'.format(ispin)) # debug
             else:
                 msg = eig_analysis_xi(xi) # debug
+
+        para.print('  Matrix xi finished. ', flush = True)
 
         ## XPS spectra (N X N)
         para.sep_line(second_sepl)
@@ -129,37 +136,50 @@ for isk in range(pool.nsk):
                                  comm = pool.comm, 
                                  zeta_analysis = user_input.zeta_analysis and ik == 0)
 
-        first = True
+        spec_xps_isk = spec_class(ener_axis = global_ener_axis)
+
         for order, Af in enumerate(Af_list):
 
-            stick = Af_to_stick(Af)
-            ener_axis, spec = stick_to_spectrum(stick, user_input)
-            ener_axis += user_input.ESHIFT_FINAL + fscf.obf.eigval[int(nocc)]
+            sticks = Af_to_sticks(Af)
 
             # important information for understanding shakeup effects and convergence 
             para.print("order {0:>2}: no. of sticks = {1:>7}, max stick = {2} ".
-                        format( order, len(stick), max([s[1] for s in stick] + [0.0]) ))
+                        format( order, len(sticks), max([s[2] for s in sticks] + [0.0]) ))
 
-            if first:
-                spec_xps_ = sp.zeros([len(ener_axis), 2])
-                spec_xps_[:, 0] = ener_axis
-                first = False
+            spec_xps_isk.add_sticks(sticks, user_input, mode = 'additive')
 
-            spec_xps_[:, 1] += spec
+        spec_xps.append(spec_xps_isk)
 
+        # output for debug
+        postfix = '_ik{0}'.format(ik)
+        if nspin == 2:
+            postfix += '_ispin{0}'.format(ispin)
+        postfix += '.dat'
+
+        spec_xps_isk.savetxt(spec_xps_fname + postfix, offset = 0.0)
+        
+        para.print('  XPS spectra finished. ', flush = True)
         para.print()
 
         ## XAS spectra ( (N + 1) x (N + 1) )
         para.sep_line(second_sepl)
         para.print('  Calculating many-body XAS spectra ... ')
 
-        first = True
-        for ixyz in range(3):
+        spec_xas_isk = spec_class(ener_axis = global_ener_axis)
+
+        for ixyz in ixyz_list_mb:
+
+            # ixyz == -1 (non-polarized) is special. Can only be obtained by superposition of sticks
+            if ixyz == -1:
+                # deal with this at the end
+                spec_xas_isk.add_sticks([], mode = 'append')
+                continue
 
             para.print('  ixyz = {0}'.format(ixyz))
             # Compute xi_c
-            xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc, user_input.nbnd_i)
-            # xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc)
+            ixmat = [ xmat_ixyz( iscf.xmat[ib, 0, :], ixyz, evec = user_input.EVEC ) for ib in range(iscf.nbnd) ]
+            # xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc, iscf.nbnd_use)
+            xi_c = compute_xi_c(xi, ixmat, nocc, iscf.nbnd_use)
             # para.print('xi_c.shape = {0}'.format(str(xi_c.shape))) # debug
 
             # Add the last column
@@ -172,49 +192,31 @@ for isk in range(pool.nsk):
                                      comm = pool.comm, 
                                      zeta_analysis = user_input.zeta_analysis and ik == 0)
 
-            col = 2 + ixyz
-
             for order, Af in enumerate(Af_list):
 
-                stick = Af_to_stick(Af)
-                ener_axis, spec = stick_to_spectrum(stick, user_input)
+                sticks = Af_to_sticks(Af)
 
                 # important information for understanding shakeup effects and convergence 
                 para.print("order {0:>2}: no. of sticks = {1:>7}, max stick = {2} ".
-                            format( order + 1, len(stick), max([s[1] for s in stick] + [0.0]) ))
+                            format( order + 1, len(sticks), max([s[2] for s in sticks] + [0.0]) ))
 
-                ener_axis += user_input.ESHIFT_FINAL + fscf.obf.eigval[int(nocc)]
-
-                if first:
-                    spec_xas_ = sp.zeros([len(ener_axis), 4 + 1])
-                    spec_xas_[:, 0] = ener_axis
-                    first = False
-
-                spec_xas_[:, col] += spec
+                spec_xas_isk.add_sticks(sticks, user_input, prefac, mode = 'append')
 
             para.print()
         # end of ixyz
+        # go back and deal with average
+        if -1 in ixyz_list_mb:
+            spec_xas_isk.average([ixyz for ixyz in ixyz_list_mb if ixyz in [0, 1, 2]], ixyz_list_mb.index(-1))
 
-        spec_xas_[:, 1] = spec_xas_[:, 2] + spec_xas_[:, 3] + spec_xas_[:, 4]
-        spec_xas_[:, 1 : ] *= prefac / 3.0
+        spec_xas_isk.savetxt(spec_xas_fname, offset = global_offset)
+        spec_xas.append(spec_xas_isk)
 
-        # output for debug
-        postfix = ''
-        postfix += '_ik{0}'.format(ik)
-        if nspin == 2:
-            postfix += '_ispin{0}'.format(ispin)
-        postfix += '.dat'
-        
-        sp.savetxt(spec_xps_fname + postfix, spec_xps_, delimiter = ' ')
-        spec_xps.append(spec_xps_)
-
-        sp.savetxt(spec_xas_fname + postfix, spec_xas_, delimiter = ' ')
-        spec_xas.append(spec_xas_)
-
+        para.print('  Many-body XAS spectra finished. ')
+        # end of ixyz
     # end if spec0_only
 # end of isk
 
-## Output Spectra
+## Output one-body spectra
 
 # intial-state one-body
 for ispin in range(nspin): spec0_i[ispin].mp_sum(pool.rootcomm) 
@@ -242,59 +244,19 @@ if user_input.spec0_only:
 ## Calculate total many-body spectra 
 
 # convolute spin-up and -down spectra if nspin == 2
-# *** Is this too cumbersome ?
-if pool.isroot():
+if pool.isroot() and nspin == 2:
 
-    spec_xas_cvlt = [None] * nspin
-    spec_xps_cvlt = [None] * nspin
-
-    pool.log(str(pool.sk_list)) # debug
-
-    first = True
-    # go over all the isk th elements
-    for isk in range(pool.sk_list_maxl):
-
-        if nspin == 2:
-            # find the xps that needs to be sent for the isk tuples overall all pools
-            for pool_i_recv, skl in enumerate(pool.sk_list_all):
-                # if wanted xps (of opposite spin) is on this pool
-                if isk < len(skl): # if skl has the isk th element
-                    twin_sk = (1 - skl[isk][0], skl[isk][1]) # find its twin
-                    if twin_sk in pool.sk_list:
-                        ind = pool.sk_list.index(twin_sk)
-                        if pool.rootcomm and pool_i_recv != pool.i:
-                            pool.log('xps {0} -> {1}'.format(ind, pool_i_recv)) # debug: watch traffic
-                            pool.rootcomm.isend(spec_xps[ind], dest = pool_i_recv)
-                        else:
-                            spec_xps_twin = spec_xps[ind]
-            # receive xps_twin if it is not on the same pool
-            if isk < len(pool.sk_list) and (1 - pool.sk_list[isk][0], pool.sk_list[isk][1]) not in pool.sk_list:
-                pool.log('received data', flush = True) # debug: watch traffic
-                spec_xps_twin = pool.rootcomm.irecv(source = MPI.ANY_SOURCE)
-
-        pool.log(flush = True)
-
-        if isk < len(pool.sk_list):
-
-            # convolute xas with xps_twin
-            spec_cvlt = convolute_spec(spec_xas[isk], spec_xps_twin) if nspin == 2 else spec_xas[isk].copy()
-            ispin = pool.sk_list[isk][0]
-            if first:
-                spec_xas_cvlt[ispin] = spec_cvlt
-            else:
-                spec_xas_cvlt[ispin][:, 1 :: ] += spec_cvlt[:, 1 :: ]
-
-            # convolute xps with xps_twin
-            spec_cvlt = convolute_spec(spec_xps[isk], spec_xps_twin) if nspin == 2 else spec_xps[isk].copy()
-            if first:
-                spec_xps_cvlt[ispin] = spec_cvlt
-            else:
-                spec_xps_cvlt[ispin][:, 1 :: ] += spec_cvlt[:, 1 :: ]
-                first = False
-
-            # *** convolute major sticks (gamma_only)
-
-        if pool.rootcomm: pool.rootcomm.barrier()
+    # convolute xas spectra
+    for isk, sk in enumerate(pool.sk_list):
+        ispin, ik = sk
+        if (1 - ispin, ik) not in pool.sk_list:
+            pool.log('The twin tuple ({0}, {1}) for ({2},{3}) is not on this pool with {5}'
+                    .format(ispin, ik, 1 - ispin, ik, str(pool.sk_list)))
+            pool.log('Unsupported distribution of sk-tuples', flush = True)
+            para.exit()
+        ind = pool.sk_list.index((1 - ispin, ik))
+        spec_xps_twin = spec_xps[ind]
+        spec_xas[isk] *= spec_xps_twin
 
     # Add spectra from each k-point
     spec_xas_final = sp.zeros([spec_xas_cvlt[0].shape[0], 4 * nspin + 1])

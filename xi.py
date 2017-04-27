@@ -114,7 +114,7 @@ def eig_analysis_xi(xi, postfix = ''):
     return msg
 
 
-def compute_xi_c(xi, xmat_c, nocc, nbnd_i_use = 10000):
+def compute_xi_c(xi, xmat_c, nocc, nbnd_i_use = nbnd_max):
     """
     Compute
         sum_c xi_{i, c} < phi_c | O | phi_h > ^ *
