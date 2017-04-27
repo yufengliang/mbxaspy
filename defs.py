@@ -75,7 +75,7 @@ class user_input_class(object):
         # convert str EVEC into a list
         if self.EVEC is not None:
             try:
-                evec = [float(e) for e in self.EVEC.split()]:
+                evec = [float(e) for e in self.EVEC.split()]
                 self.EVEC = evec  
             except:
                 para.error(" E-field vector not correct. ")
@@ -449,6 +449,9 @@ class scf_class(object):
                 # print(self.nspin, self.nk, userin.gamma_only) # debug
                 # self.nk_use = 1 if userin.gamma_only else self.nk
                 self.nk_use = userin.nk_use if userin.nk_use > 0 else self.nk
+                if userin.gamma_only:
+                    self.nk_use = 1
+
                 if self.nk_use > self.nk: para.error('Number of kpoints to be used ({0}) larger than kpoints provided ({1})'.format(self.nk_use, self.nk))
                 
                 self.kpt = kpoints_class(nk = self.nk_use)

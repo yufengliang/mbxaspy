@@ -59,7 +59,7 @@ ixyz_list = [-1, 0, 1, 2] # user_input.ixyz_list
 # for many-body
 ixyz_list_mb = ixyz_list[:]
 if -1 in ixyz_list:
-    for ixyz in [0, 1, 2]: if ixyz not in ixyz_list: ixyz_list_mb.append(ixyz)
+    ixyz_list_mb += [ixyz for ixyz in [0, 1, 2] if ixyz not in ixyz_list ]
 
 ## loop over spin and kpoints
 for isk in range(pool.nsk):
@@ -169,15 +169,14 @@ for isk in range(pool.nsk):
 
         for ixyz in ixyz_list_mb:
 
+            spec_xas_isk.add_sticks([], mode = 'append')
+
             # ixyz == -1 (non-polarized) is special. Can only be obtained by superposition of sticks
-            if ixyz == -1:
-                # deal with this at the end
-                spec_xas_isk.add_sticks([], mode = 'append')
-                continue
+            if ixyz == -1: continue # deal with this at the end
 
             para.print('  ixyz = {0}'.format(ixyz))
             # Compute xi_c
-            ixmat = [ xmat_ixyz( iscf.xmat[ib, 0, :], ixyz, evec = user_input.EVEC ) for ib in range(iscf.nbnd) ]
+            ixmat = sp.array([ xmat_ixyz( iscf.xmat[ib, 0, :], ixyz, evec = user_input.EVEC ) for ib in range(iscf.nbnd) ])
             # xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc, iscf.nbnd_use)
             xi_c = compute_xi_c(xi, ixmat, nocc, iscf.nbnd_use)
             # para.print('xi_c.shape = {0}'.format(str(xi_c.shape))) # debug
@@ -200,15 +199,15 @@ for isk in range(pool.nsk):
                 para.print("order {0:>2}: no. of sticks = {1:>7}, max stick = {2} ".
                             format( order + 1, len(sticks), max([s[2] for s in sticks] + [0.0]) ))
 
-                spec_xas_isk.add_sticks(sticks, user_input, prefac, mode = 'append')
+                spec_xas_isk.add_sticks(sticks, user_input, prefac, mode = 'additive')
 
             para.print()
         # end of ixyz
         # go back and deal with average
         if -1 in ixyz_list_mb:
-            spec_xas_isk.average([ixyz for ixyz in ixyz_list_mb if ixyz in [0, 1, 2]], ixyz_list_mb.index(-1))
+            spec_xas_isk.average([ind for ind, ixyz in enumerate(ixyz_list_mb) if ixyz in [0, 1, 2]], ixyz_list_mb.index(-1))
 
-        spec_xas_isk.savetxt(spec_xas_fname, offset = global_offset)
+        spec_xas_isk.savetxt(spec_xas_fname + postfix, offset = global_offset)
         spec_xas_all.append(spec_xas_isk)
 
         para.print('  Many-body XAS spectra finished. ')
@@ -279,8 +278,9 @@ spec_xas = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
 for isk, sk in enumerate(pool.sk_list):
     ispin, ik = sk
     weight = iscf.kpt.weight[ik]    
-    if ispin == 0: spec_xps += spec_xps_all[isk] * weight # two spin channels are the same
+    if ispin == 0: spec_xps += spec_xps_all[isk] # two spin channels are the same
     spec_xas[ispin] += spec_xas_all[isk]
+spec_xps *= weight
 
 # mpi reduce
 spec_xps.mp_sum(pool.rootcomm)

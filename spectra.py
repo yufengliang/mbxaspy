@@ -178,8 +178,10 @@ def add_I(I1, I2):
     if I2 is None: return I1
     row, col = max(I1.shape[0], I2.shape[0]), max(I1.shape[1], I2.shape[1])
     I = sp.zeros((row, col))
-    I[: I1.shape[0], : I1.shape[1]] += I1
-    I[: I2.shape[0], : I2.shape[1]] += I2
+    # I[: I1.shape[0], : I1.shape[1]] += I1 # left aligned
+    I[: I1.shape[0], col - I1.shape[1] :] += I1 # right aligned
+    # I[: I2.shape[0], : I2.shape[1]] += I2 # left aligned
+    I[: I2.shape[0], col - I2.shape[1] :] += I2 # right aligned
     return I
 
 def sticks_filter(sticks, sticks_thr = 1e-1, max_sticks = 10):
@@ -243,9 +245,15 @@ class spec_class(object):
 
         # add new_spec to self.I
         if mode == 'append':
+            #  1 2   5   -\   1 2 5 
+            #  3 4   6   -/   3 4 6
             self.I = sp.concatenate((self.I, new_spec), axis = 1) if self.I is not None else new_spec
-        else: # 'additive'
+        elif mode == 'additive':
+            #  1 2   5   -\   1 7 
+            #  3 4   6   -/   3 10
             self.I = add_I(self.I, new_spec)
+        else:
+            raise ValueError('spec_class().add_sticks: unknown mode {}'.format(mode))
 
         self.ncol = self.I.shape[1]
 
