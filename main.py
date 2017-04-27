@@ -39,8 +39,8 @@ if user_input.scf_type == 'shirley_xas':
 
 if not user_input.spec0_only:
     from determinants import *
-    spec_xps = []
-    spec_xas = []
+    spec_xps_all = []
+    spec_xas_all = []
 
 nspin = iscf.nspin
 
@@ -148,7 +148,7 @@ for isk in range(pool.nsk):
 
             spec_xps_isk.add_sticks(sticks, user_input, mode = 'additive')
 
-        spec_xps.append(spec_xps_isk)
+        spec_xps_all.append(spec_xps_isk)
 
         # output for debug
         postfix = '_ik{0}'.format(ik)
@@ -209,7 +209,7 @@ for isk in range(pool.nsk):
             spec_xas_isk.average([ixyz for ixyz in ixyz_list_mb if ixyz in [0, 1, 2]], ixyz_list_mb.index(-1))
 
         spec_xas_isk.savetxt(spec_xas_fname, offset = global_offset)
-        spec_xas.append(spec_xas_isk)
+        spec_xas_all.append(spec_xas_isk)
 
         para.print('  Many-body XAS spectra finished. ')
         # end of ixyz
@@ -244,9 +244,9 @@ if user_input.spec0_only:
 ## Calculate total many-body spectra 
 
 # convolute spin-up and -down spectra if nspin == 2
-if pool.isroot() and nspin == 2:
+if nspin == 2:
 
-    # convolute xas spectra
+    # convolute xas spectra: do this before xps
     for isk, sk in enumerate(pool.sk_list):
         ispin, ik = sk
         if (1 - ispin, ik) not in pool.sk_list:
@@ -256,31 +256,45 @@ if pool.isroot() and nspin == 2:
             para.exit()
         ind = pool.sk_list.index((1 - ispin, ik))
         spec_xps_twin = spec_xps[ind]
-        spec_xas[isk] *= spec_xps_twin
+        spec_xas_all[isk] *= spec_xps_twin
 
+    # convolute xps spectra
+    isk_done = []
     # Add spectra from each k-point
-    spec_xas_final = sp.zeros([spec_xas_cvlt[0].shape[0], 4 * nspin + 1])
-    spec_xas_final[:, 0] = spec_xas_cvlt[0][:, 0]
-    for ispin in range(nspin):
-        if pool.rootcomm:
-            spec_xas_final[:, 1 + ispin :: nspin] = pool.rootcomm.reduce(spec_xas_cvlt[ispin][:, 1 :: ], op = MPI.SUM)
-        if not ismpi():
-            spec_xas_final[:, 1 + ispin :: nspin] = spec_xas_cvlt[ispin][:, 1 ::]
+    for isk, sk in enumerate(pool.sk_list):
+        if isk in isk_done: continue
+        ispin, ik = sk
+        ind = pool.sk_list.index((1 - ispin, ik)) # don't need to check existence again
+        spec_xps_twin = spec_xps[ind]
+        spec_xps_all[isk] *= spec_xps_twin
+        # the two spin channels are the same for xps
+        spec_xps_all[ind] = spec_xps_all[isk] # note that the twins are correlated now (use deepcopy to uncorrelate them)
+        isk_done +=[isk, ind]
 
-    spec_xps_final = sp.zeros([spec_xps_cvlt[0].shape[0], 2])
-    spec_xps_final[:, 0] = spec_xps_cvlt[0][:, 0]
+# local summation
 
-    # the two spin channels are the same for xps
-    if pool.rootcomm:
-        spec_xps_final[:, 1] = pool.rootcomm.reduce(spec_xps_cvlt[ispin][:, 1], op = MPI.SUM)
-    if not ismpi():
-        spec_xps_final[:, 1] = spec_xps_cvlt[ispin][:, 1]
+spec_xps = spec_class(ener_axis = global_ener_axis)
+spec_xas = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
+
+for isk, sk in enumerate(pool.sk_list):
+    ispin, ik = sk
+    weight = iscf.kpt.weight[ik]    
+    if ispin == 0: spec_xps += spec_xps_all[isk] * weight # two spin channels are the same
+    spec_xas[ispin] += spec_xas_all[isk]
+
+# mpi reduce
+spec_xps.mp_sum(pool.rootcomm)
+for ispin in range(nspin):
+    spec_xas[ispin].mp_sum(pool.rootcomm)
+
+if nspin == 1: spec_xas = spec_xas[0]
+else:   spec_xas = spec_xas[0] | spec_xas[1] # mix spin up and down
 
 # This requires the world root is also one of the pool roots: can be made more robust
 if para.isroot():
     postfix = '.dat'
-    sp.savetxt(spec_xas_fname + postfix, spec_xas_final, delimiter = ' ')
-    sp.savetxt(spec_xps_fname + postfix, spec_xps_final, delimiter = ' ')
+    spec_xps.savetxt(spec_xps_fname + postfix)
+    spec_xas.savetxt(spec_xas_fname + postfix, offset = global_offset)
 
 para.done()
 # Bye ! ~

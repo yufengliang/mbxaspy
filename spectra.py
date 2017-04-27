@@ -7,6 +7,7 @@ import sys
 import os
 import math
 from bisect import bisect_left, bisect_right
+import numbers
 
 from constants import *
 from utils import *
@@ -266,6 +267,9 @@ class spec_class(object):
         spec.ncol = max(self.ncol, other.ncol)
         return spec
 
+    def __iadd__(self, other):
+        return self + other
+
     def __or__(self, other):
         """ 
         define spec1 | spec2
@@ -285,7 +289,11 @@ class spec_class(object):
     def __mul__(self, other):
         """
         define spec1 * spec2
-        This is the spectral convolution:
+
+        usage 1: multiple intensity I by a constant
+
+        usage 2: spectral convolution
+
         spec(E) = integrate dE' spec1(E - E') spec2(E')
 
         Let's zero_ind = 4 for I1 and I2, then the convoluted intensity at ind = 7 is:
@@ -302,6 +310,7 @@ class spec_class(object):
         max(ie + zero_ind - lener + 1, 0) <= ie1 < min(ie + zero_ind + 1, lener)
         
         """
+        
         if not same_axis(self, other):
             raise IndexError('cannot convolute spectra with different energy axes.')
         if abs(self.ener_axis[zero_ind]) > small_thr:
@@ -321,6 +330,9 @@ class spec_class(object):
 
     def __imul__(self, other):
         """ is this meaningful  ? """
+        if isinstance(other, numbers.Number):
+            self.I *= other
+            return self
         return self * other
 
     def mp_sum(self, comm = None):
