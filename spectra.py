@@ -304,6 +304,8 @@ class spec_class(object):
         """
         if not same_axis(self, other):
             raise IndexError('cannot convolute spectra with different energy axes.')
+        if abs(self.ener_axis[zero_ind]) > small_thr:
+            raise IndexError('Energy axis does not contain E=0. Cannot convolute spectra.')
         spec = spec_class(ener_axis = self.ener_axis)
         spec.I = sp.zeros(self.I.shape)
         spec.ncol = self.ncol
