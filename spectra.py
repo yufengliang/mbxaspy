@@ -168,6 +168,7 @@ def same_axis(self, other):
     if len(self.ener_axis) != len(other.ener_axis) or any(abs(self.ener_axis - other.ener_axis) > zero_thr): return False
     else: return True
 
+
 def add_I(I1, I2):
     """ 
     Add two 2D arrays.
@@ -183,6 +184,14 @@ def add_I(I1, I2):
     # I[: I2.shape[0], : I2.shape[1]] += I2 # left aligned
     I[: I2.shape[0], col - I2.shape[1] :] += I2 # right aligned
     return I
+
+
+def os_sum(sticks):
+    """
+    sum up the oscillator strengths of all sticks
+    """
+    return sp.sum(sp.array([s[2 : ] for s in sticks]), axis = 0)
+
 
 def sticks_filter(sticks, sticks_thr = 1e-1, max_sticks = 10):
     pass
@@ -348,9 +357,16 @@ class spec_class(object):
         if comm and comm != MPI.COMM_NULL:
             self.I = comm.allreduce(self.I, op = MPI.SUM) # check if allreduce works for older mpi4py
 
-
     def average(self, cols = [], target_col = 0):
         """
         Take the average of the given cols and put it into target_col
         """
         self.I[:, target_col] = sp.average(self.I[:, cols], axis = 1)
+
+    def os_sum(self):
+        """
+        return the spectral area. 
+        Use this with caution if the energy windonw is not wide enough.
+        """
+        return sp.sum(self.I, axis = 0) * self.dE
+

@@ -55,11 +55,16 @@ global_offset = user_input.ESHIFT_FINAL + fscf.e_lowest
 spec0_i = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
 if user_input.final_1p: spec0_f = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
 
+## setup ixyz list *** need more works
 ixyz_list = [-1, 0, 1, 2] # user_input.ixyz_list
-# for many-body
-ixyz_list_mb = ixyz_list[:]
+# if not completed
+ixyz_list_ = ixyz_list[:]
 if -1 in ixyz_list:
-    ixyz_list_mb += [ixyz for ixyz in [0, 1, 2] if ixyz not in ixyz_list ]
+    ixyz_list_ += [ixyz for ixyz in [0, 1, 2] if ixyz not in ixyz_list ]
+
+# output format
+fn_fmt      = 'f^(n)/statistics\n!{:>8} {:>10}  {:>12}  {:>12}'
+fn_num_fmt  =                   '!{:>8} {:>10}  {:>12.7}  {:>12.7}' 
 
 ## loop over spin and kpoints
 for isk in range(pool.nsk):
@@ -97,12 +102,13 @@ for isk in range(pool.nsk):
     # print(sticks[0]) debug
 
     # initial-state
-    sticks = xmat_to_sticks(iscf, ixyz_list, nocc, offset = -fscf.e_lowest, evec = user_input.EVEC)
+    sticks = xmat_to_sticks(iscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = user_input.EVEC)
     spec0_i[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
+    spec0_i_os_sum = os_sum(sticks)
 
     # final-state
     if user_input.final_1p:
-        sticks = xmat_to_sticks(fscf, ixyz_list, nocc, offset = -fscf.e_lowest, evec = user_input.EVEC)
+        sticks = xmat_to_sticks(fscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = user_input.EVEC)
         spec0_f[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
     
     para.print('  One-body spectra finished.', flush = True)
@@ -142,13 +148,13 @@ for isk in range(pool.nsk):
 
         spec_xps_isk = spec_class(ener_axis = global_ener_axis)
 
+        para.print(fn_fmt.format('order', '#sticks', 'stick max', 'os sum'))
         for order, Af in enumerate(Af_list):
 
             sticks = Af_to_sticks(Af)
 
             # important information for understanding shakeup effects and convergence 
-            para.print("order {0:>2}: no. of sticks = {1:>7}, max stick = {2} ".
-                        format( order, len(sticks), max([s[2] for s in sticks] + [0.0]) ))
+            para.print(fn_num_fmt.format( order, len(sticks), max([s[2] for s in sticks] + [0.0]), os_sum(sticks)[0]))
 
             spec_xps_isk.add_sticks(sticks, user_input, mode = 'additive')
 
@@ -171,7 +177,7 @@ for isk in range(pool.nsk):
 
         spec_xas_isk = spec_class(ener_axis = global_ener_axis)
 
-        for ixyz in ixyz_list_mb:
+        for ixyz in ixyz_list_:
 
             spec_xas_isk.add_sticks([], mode = 'append')
 
@@ -195,21 +201,22 @@ for isk in range(pool.nsk):
                                      comm = pool.comm, 
                                      zeta_analysis = user_input.zeta_analysis and ik == 0)
 
+            para.print(fn_fmt.format('order', '#sticks', 'stick max', 'os sum'))
+
             for order, Af in enumerate(Af_list):
 
                 sticks = Af_to_sticks(Af, offset = fscf.obf.eigval[int(nocc)] - fscf.e_lowest)
 
                 # important information for understanding shakeup effects and convergence 
-                para.print("order {0:>2}: no. of sticks = {1:>7}, max stick = {2} ".
-                            format( order + 1, len(sticks), max([s[2] for s in sticks] + [0.0]) ))
+                para.print(fn_num_fmt.format( order, len(sticks), max([s[2] for s in sticks] + [0.0]), os_sum(sticks)[0] / spec0_i_os_sum[ixyz]))
 
                 spec_xas_isk.add_sticks(sticks, user_input, prefac, mode = 'additive')
 
             para.print()
         # end of ixyz
         # go back and deal with average
-        if -1 in ixyz_list_mb:
-            spec_xas_isk.average([ind for ind, ixyz in enumerate(ixyz_list_mb) if ixyz in [0, 1, 2]], ixyz_list_mb.index(-1))
+        if -1 in ixyz_list_:
+            spec_xas_isk.average([ind for ind, ixyz in enumerate(ixyz_list_) if ixyz in [0, 1, 2]], ixyz_list_.index(-1))
 
         spec_xas_isk.savetxt(spec_xas_fname + postfix, offset = global_offset)
         spec_xas_all.append(spec_xas_isk)
@@ -274,7 +281,7 @@ if nspin == 2:
         spec_xps_all[ind] = spec_xps_all[isk] # note that the twins are correlated now (use deepcopy to uncorrelate them)
         isk_done +=[isk, ind]
 
-# local summation
+# intrapool summation
 
 spec_xps = spec_class(ener_axis = global_ener_axis)
 spec_xas = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
