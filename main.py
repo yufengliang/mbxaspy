@@ -186,7 +186,7 @@ for isk in range(pool.nsk):
 
             para.print('  ixyz = {0}'.format(ixyz))
             # Compute xi_c
-            ixmat = sp.array([ xmat_ixyz( iscf.xmat[ib, 0, :], ixyz, evec = user_input.EVEC ) for ib in range(iscf.nbnd) ])
+            ixmat = sp.array([ xmat_ixyz( iscf.xmat[ib, 0, :], ixyz, evec = user_input.EVEC ) for ib in range(iscf.nbnd_use) ])
             # xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc, iscf.nbnd_use)
             xi_c = compute_xi_c(xi, ixmat, nocc, iscf.nbnd_use)
             # para.print('xi_c.shape = {0}'.format(str(xi_c.shape))) # debug

@@ -52,7 +52,10 @@ def compute_xi(iscf, fscf):
     if userin.scf_type == 'shirley_xas':
 
         # The pseudo part: xi_{mn}^PS = < nk | B_j > < B_j | ~ B_i > < ~ B_i | ~mk >
-        xi      = iscf.obf.eigvec.H * fscf.obf.overlap * fscf.obf.eigvec # All 3 must be sp.matrix
+        # xi      = iscf.obf.eigvec.H * fscf.obf.overlap * fscf.obf.eigvec # All 3 must be sp.matrix
+        xi      = iscf.obf.eigvec[:, : iscf.nbnd_use].H \
+                * fscf.obf.overlap \
+                * fscf.obf.eigvec[:, : fscf.nbnd_use]
 
         # PAW corrections:
         # \sum_{I, l, l'} < nk | beta_Il > S_ll' < ~beta_Il' | ~mk >
@@ -68,12 +71,12 @@ def compute_xi(iscf, fscf):
                 nprojs      = proj.nprojs[s]
                 full_sij    = proj.full_sij[s]
                 proj_range  = slice(proj_offset, proj_offset + nprojs)
-                xi          += iscf.proj.beta_nk[proj_range, :].H \
+                xi          += iscf.proj.beta_nk[proj_range, : iscf.nbnd_use].H \
                             * full_sij \
-                            * fscf.proj.beta_nk[proj_range, :]
+                            * fscf.proj.beta_nk[proj_range, : fscf.nbnd_use]
                 proj_offset += nprojs
 
-        xi      = xi.transpose() # fscf.nbnd x iscf.nbnd. This is important !
+        xi      = xi.transpose() # fscf.nbnd_use x iscf.nbnd_use. This is important !
 
         return xi
 

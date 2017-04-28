@@ -86,7 +86,7 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
     # para.print(zeta_mat) # debug
 
     # print out a corner of zeta_mat
-    ms, ns = min(ms_const, m), min(ns_const, n)
+    ms, ns = min(ms_const, m - n + 1), min(ns_const, n)
     para.print('| zeta matrix | (left-upper corner): ')
     para.print('{0:5}'.format('') + ' '.join(['{0:>12}'.format(_) for _ in range(n - ns, n)]))
     for im in range(ms):
