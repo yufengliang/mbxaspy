@@ -197,7 +197,7 @@ for isk in range(pool.nsk):
 
             for order, Af in enumerate(Af_list):
 
-                sticks = Af_to_sticks(Af)
+                sticks = Af_to_sticks(Af, offset = fscf.obf.eigval[int(nocc)] - fscf.e_lowest)
 
                 # important information for understanding shakeup effects and convergence 
                 para.print("order {0:>2}: no. of sticks = {1:>7}, max stick = {2} ".

@@ -154,14 +154,14 @@ def xmat_to_sticks(scf, ixyz_list, nocc = 0, offset = 0.0, evec = None):
     return sticks
 
 
-def Af_to_sticks(Af):
+def Af_to_sticks(Af, offset = 0.0):
     """
     Given the final-state amplitudy Af, return a stick array:
     sticks: [[energy, "info", os_1, os_2, os_3, ...], ...]
     
     Af: a dictionary of array([energy, amplitude])
     """
-    return [ [ complex(Af[conf][0]).real, conf, float(abs(Af[conf][1]) ** 2) ] for conf in Af]
+    return [ [ complex(Af[conf][0]).real + offset, conf, float(abs(Af[conf][1]) ** 2) ] for conf in Af]
 
 
 def same_axis(self, other):
