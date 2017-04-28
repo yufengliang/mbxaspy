@@ -258,7 +258,7 @@ if nspin == 2:
             pool.log('Unsupported distribution of sk-tuples', flush = True)
             para.exit()
         ind = pool.sk_list.index((1 - ispin, ik))
-        spec_xps_twin = spec_xps[ind]
+        spec_xps_twin = spec_xps_all[ind]
         spec_xas_all[isk] *= spec_xps_twin
 
     # convolute xps spectra
@@ -268,7 +268,7 @@ if nspin == 2:
         if isk in isk_done: continue
         ispin, ik = sk
         ind = pool.sk_list.index((1 - ispin, ik)) # don't need to check existence again
-        spec_xps_twin = spec_xps[ind]
+        spec_xps_twin = spec_xps_all[ind]
         spec_xps_all[isk] *= spec_xps_twin
         # the two spin channels are the same for xps
         spec_xps_all[ind] = spec_xps_all[isk] # note that the twins are correlated now (use deepcopy to uncorrelate them)

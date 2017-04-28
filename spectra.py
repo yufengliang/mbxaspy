@@ -321,7 +321,7 @@ class spec_class(object):
         
         if not same_axis(self, other):
             raise IndexError('cannot convolute spectra with different energy axes.')
-        if abs(self.ener_axis[zero_ind]) > small_thr:
+        if abs(self.ener_axis[self.zero_ind]) > small_thr:
             raise IndexError('Energy axis does not contain E=0. Cannot convolute spectra.')
         spec = spec_class(ener_axis = self.ener_axis)
         spec.I = sp.zeros(self.I.shape)
@@ -329,8 +329,8 @@ class spec_class(object):
         for ie in range(self.lener):
             e1_lo = max(ie + other.zero_ind + 1 - self.lener, 0)
             e1_hi = min(ie + other.zero_ind + 1, self.lener)
-            e2_lo = ie + other.zero_ind - (e1_hi - 1)
-            e2_hi = ie + other.zero_ind - (e1_lo - 1)
+            e2_lo = ie + other.zero_ind - e1_hi
+            e2_hi = ie + other.zero_ind - e1_lo 
             # only use the 1st col of the second spec
             spec.I[ie, :] = sp.dot(other.I[range(e2_hi, e2_lo, -1), 0],
                                     self.I[range(e1_lo, e1_hi,  1), :]) * other.dE
