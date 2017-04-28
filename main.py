@@ -153,8 +153,9 @@ for isk in range(pool.nsk):
 
             sticks = Af_to_sticks(Af)
 
-            # important information for understanding shakeup effects and convergence 
-            para.print(fn_num_fmt.format( order, len(sticks), max([s[2] for s in sticks] + [0.0]), os_sum(sticks)[0]))
+            # important information for understanding shakeup effects and convergence
+            if len(sticks) > 0:
+                para.print(fn_num_fmt.format( order, len(sticks), max([s[2] for s in sticks]), os_sum(sticks)[0]))
 
             spec_xps_isk.add_sticks(sticks, user_input, mode = 'additive')
 
@@ -207,8 +208,9 @@ for isk in range(pool.nsk):
 
                 sticks = Af_to_sticks(Af, offset = fscf.obf.eigval[int(nocc)] - fscf.e_lowest)
 
-                # important information for understanding shakeup effects and convergence 
-                para.print(fn_num_fmt.format( order + 1, len(sticks), max([s[2] for s in sticks] + [0.0]), os_sum(sticks)[0] / spec0_i_os_sum[ixyz]))
+                # important information for understanding shakeup effects and convergence
+                if len(sticks) > 0:
+                    para.print(fn_num_fmt.format( order + 1, len(sticks), max([s[2] for s in sticks]), os_sum(sticks)[0] / spec0_i_os_sum[ixyz]))
 
                 spec_xas_isk.add_sticks(sticks, user_input, prefac, mode = 'additive')
 
