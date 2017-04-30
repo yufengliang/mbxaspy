@@ -92,7 +92,7 @@ def plot_xi(xi):
     heatmap = plt.imshow(abs(sp.array(xi)), cmap = 'seismic')
     plt.axis([0, xi.shape[1], 0, xi.shape[0]])
     plt.axes().set_aspect('equal')
-    plt.savefig('xi.eps', format = 'png')
+    plt.savefig('xi.png', format = 'png')
     plt.close()
 
 def eig_analysis_xi(xi, postfix = ''):
