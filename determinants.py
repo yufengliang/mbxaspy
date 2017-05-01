@@ -286,7 +286,9 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
         # use this with cautions
         det_thr *= det_scaling_fac
 
+        para.print('Breadth-first search finished.', flush = True)
         if comm:
+            para.print('Gathering Af ...', flush = True)
             # Gather and combine Af_new
             Af_gather = comm.gather(Af_new, root = 0)
             # *** doing this on one core may be inefficient
@@ -299,6 +301,7 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
                             Af[conf][1] += iter_Af[conf][1]
                         else:
                             Af[conf] = iter_Af[conf].copy()
+            para.print('Finish gathering Af ...', flush = True)
         else:
             Af = Af_new.copy()
             del Af_new
@@ -314,7 +317,9 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
             if conf0 in Af: Af.pop(conf0)
 
         if comm:
+            para.print('Broadcasting Af ...', flush = True)
             Af = comm.bcast(Af, root = 0)
+            para.print('Finish broadcasting Af.', flush = True)
 
         # Find out the max amplitude
         try:
@@ -337,7 +342,7 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
                     para.print('{0}: {1:>12.5}  {2:>12.5e} {3}'.format(conf_, abs(Af[conf][0]), abs(Af[conf][1]), label))
 
             para.print('max_conf: {0}, amp = {1}'.format(max_conf, abs(Af[max_conf][1])))
-            para.print()
+            para.print(flush = True)
 
         Af_list.append(Af)
     # end for ndepth
