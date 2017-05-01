@@ -72,7 +72,7 @@ for isk in range(pool.nsk):
     ispin, ik  = pool.sk_list[isk] # acquire current spin
 
     para.sep_line()
-    para.print(' Processing (ispin, ik) = ({0},{1}) \n'.format(ispin, ik))
+    para.print(' Processing (ispin, ik) = ({0},{1}) \n'.format(ispin, ik), flush = True)
 
     # weight the sticks according to the k-grid
     weight = iscf.kpt.weight[ik]; 
@@ -81,7 +81,7 @@ for isk in range(pool.nsk):
 
     # Import the initial-state scf calculation
     para.sep_line(second_sepl)
-    para.print(' Importing initial-state scf\n')
+    para.print(' Importing initial-state scf\n', flush = True)
     iscf.input(isk = isk)
     para.print('  xmat: the {0}th atom in ATOMIC_POSITIONS is excited.'.format(xatom(iscf.proj, iscf.xmat) + 1))
 
@@ -96,7 +96,7 @@ for isk in range(pool.nsk):
     else: nocc = iscf.nocc[ik][ispin]
 
     ## Compute non-interacting spectra *** should I put it in a def ?
-    para.print('  Calculating one-body spectra ...\n', flush = True)
+    para.print('  Calculating one-body spectra ...\n')
 
     # sticks = xmat_to_sticks(iscf, [-2], nocc, evec = [1.0, 0.0, 0.0]) # debug
     # print(sticks[0]) debug
@@ -223,7 +223,7 @@ for isk in range(pool.nsk):
         spec_xas_isk.savetxt(spec_xas_fname + postfix, offset = global_offset)
         spec_xas_all.append(spec_xas_isk)
 
-        para.print('  Many-body XAS spectra finished. ')
+        para.print('  Many-body XAS spectra finished. ', flush = True)
         # end of ixyz
     # end if spec0_only
 # end of isk
