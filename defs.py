@@ -139,10 +139,10 @@ class optimal_basis_set_class(object):
             """
             # Note that the input is the transpose of < B_i | nk > ***
             self.eigvec = input_from_binary(fh, 'complex', size, sk_offset * size)
-        except struct.error:
+        except: # struct.error:
             para.error('Problem converting eigvec file.')
         # Output some major components of a part of eigenvalues near the fermi level
-        para.print(eigvec2str(self.eigvec, self.nbasis, self.nbnd, int(self.nelec / 2)))
+        para.print(eigvec2str(self.eigvec, self.nbasis, self.nbnd, int(self.nelec / 2)), flush = True)
         # Note that reshape works in row-major order 
         # eigvec = < B_i | nk > 
         self.eigvec = sp.matrix(self.eigvec).reshape(self.nbasis, self.nbnd)
@@ -403,8 +403,7 @@ class scf_class(object):
             try:
                 fh = open(fname, 'r' + binary)
             except:
-                para.print(" Can't open " + fname + '. Check if shirley_xas finishes properly. Halt. ', flush = True)
-                para.stop()
+                para.error(" Can't open " + fname + '. Check if shirley_xas finishes properly. Halt. ')
 
             # information file
             if f == 'info':
@@ -422,8 +421,7 @@ class scf_class(object):
                         except:
                             para.print(' Convert ' + var + ' = ' + var_input[var] + ' failed.')
                     else:
-                        para.print(' Variable "' + var + '" missed in ' + fname, flush = True)
-                        para.stop()
+                        para.error(' Variable "' + var + '" missed in ' + fname)
 
                 # adjust the no. of bands actually used
                 self.nbnd_use = nbnd_use if 0 < nbnd_use < self.nbnd else self.nbnd
@@ -436,7 +434,7 @@ class scf_class(object):
                          +  '  number of electrons (nelec)               = {4}\n'\
                          +  '  number of optimal-basis function (nbasis) = {5}\n'\
                            ).format(self.nbnd, self.nbnd_use, self.nspin, self.nk, self.nelec, self.nbasis)
-                para.print(info_str)
+                para.print(info_str, flush = True)
 
                 # overwrite no. of electrons
                 if nelec > 0: self.nelec = nelec
@@ -511,7 +509,7 @@ class scf_class(object):
                             emin = min(eigval[0][int(nocc[0])], eigval[1][int(nocc[1])])
                             if not self.e_lowest or emin < self.e_lowest:
                                 self.e_lowest = emin
-                    para.print('  Energy of LUMO: {0} eV '.format(self.e_lowest))
+                    para.print('  Energy of LUMO: {0} eV '.format(self.e_lowest), flush = True)
 
                 if isk >= 0:
                     para.print('  Band energies (eV): ')
@@ -523,14 +521,14 @@ class scf_class(object):
                     self.eigval = self.obf.eigval
                     para.print('  occupation number: {0}'.format(nocc))
                     para.print('  local efermi = {0:.4f}'.format(self.eigval[int(nocc) - 1]))
-                    para.print()
+                    para.print(flush = True)
 
             # eigenvector file
             if f == 'eigvec':
                 para.print('  Obf Wavefunctions : ')
                 self.obf.input_eigvec(fh, para.pool.sk_offset[isk])
                 self.eigvec = self.obf.eigvec
-                para.print()
+                para.print(flush = True)
 
             # projector file
             if f == 'proj':
@@ -543,7 +541,7 @@ class scf_class(object):
                 else:
                     para.print('  Reading projectors ... ')
                     self.proj.input_proj(fh, para.pool.sk_offset[isk])
-                para.print()
+                para.print(flush = True)
 
             # xmat file: matrix elements
             if f == 'xmat':
@@ -556,7 +554,7 @@ class scf_class(object):
                     offset = size * self.proj.icore
                 else: offset = 0
                 self.input_xmat(fh, offset, para.pool.sk_offset[isk], is_initial)
-                para.print()
+                para.print(flush = True)
                 
             fh.close()
         
