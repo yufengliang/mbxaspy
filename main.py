@@ -39,7 +39,8 @@ if user_input.scf_type == 'shirley_xas':
 
 if not user_input.spec0_only:
     from determinants import *
-    spec_xps_all = []
+    spec_xps_all = []   
+    sticks_xps_all = []
     spec_xas_all = []
 
 nspin = iscf.nspin
@@ -148,10 +149,12 @@ for isk in range(pool.nsk):
 
         spec_xps_isk = spec_class(ener_axis = global_ener_axis)
 
+        sticks_all_order = []
         para.print(fn_fmt.format('order', '#sticks', 'stick max', 'os sum'))
         for order, Af in enumerate(Af_list):
 
             sticks = Af_to_sticks(Af)
+            sticks_all_order += sticks
 
             # important information for understanding shakeup effects and convergence
             if len(sticks) > 0:
@@ -160,6 +163,7 @@ for isk in range(pool.nsk):
             spec_xps_isk.add_sticks(sticks, user_input, mode = 'additive')
 
         spec_xps_all.append(spec_xps_isk)
+        sticks_xps_all.append(sticks_all_order)
 
         # output for debug
         postfix = '_ik{0}'.format(ik)
@@ -267,8 +271,9 @@ if nspin == 2:
             pool.log('Unsupported distribution of sk-tuples', flush = True)
             para.exit()
         ind = pool.sk_list.index((1 - ispin, ik))
-        spec_xps_twin = spec_xps_all[ind]
-        spec_xas_all[isk] *= spec_xps_twin
+        #spec_xps_twin = spec_xps_all[ind]
+        #spec_xas_all[isk] *= spec_xps_twin
+        spec_xas_all[isk] *= sticks_xps_all[ind]
 
     # convolute xps spectra
     isk_done = []
@@ -277,11 +282,12 @@ if nspin == 2:
         if isk in isk_done: continue
         ispin, ik = sk
         ind = pool.sk_list.index((1 - ispin, ik)) # don't need to check existence again
-        spec_xps_twin = spec_xps_all[ind]
-        spec_xps_all[isk] *= spec_xps_twin
+        #spec_xps_twin = spec_xps_all[ind]
+        #spec_xps_all[isk] *= spec_xps_twin
+        spec_xps_all[isk] *= sticks_xps_all[ind]
         # the two spin channels are the same for xps
         spec_xps_all[ind] = spec_xps_all[isk] # note that the twins are correlated now (use deepcopy to uncorrelate them)
-        isk_done +=[isk, ind]
+        isk_done += [isk, ind]
 
 # intrapool summation
 

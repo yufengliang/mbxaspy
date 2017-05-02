@@ -346,13 +346,14 @@ class spec_class(object):
             if len(other) > 0 and len(other[0]) > 2: # then it is a stick array
                 spec = spec_class(ener_axis = self.ener_axis)
                 spec.I = sp.zeros(self.I.shape)
+                spec.ncol = self.ncol
                 for stick in other: # *** to be parallelized
                     e_ind = int(stick[0] / self.dE)
                     l = stick[0] % self.dE
-                    if e_ind >= 0:
-                        spec.I[e_ind + 1 : , :] += ( (1 - l) * self.I[: -e_ind - 1, :] + l * self.I[1 : -e_ind, :] ) * stick[2]
+                    if e_ind > 0:
+                        spec.I[e_ind + 1 : , :] += ( l * self.I[: -e_ind - 1, :] + (1 - l) * self.I[1 : -e_ind, :] ) * stick[2]
                     else:
-                        spec.I[: e_ind - 1, :] += ( l * self.I[-e_ind : -1, :] + (1 - l) * self.I[-e_ind + 1 :, :] ) * stick[2]
+                        spec.I[: e_ind - 1, :] += ( (1 - l) * self.I[-e_ind : -1, :] + l * self.I[-e_ind + 1 :, :] ) * stick[2]
                 return spec
         if not isinstance(other, spec_class):
             raise TypeError('unsupported operand type(s) for *')
