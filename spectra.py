@@ -325,9 +325,38 @@ class spec_class(object):
         ie + zero_ind - lener < ie1 <= ie + zero_ind, so
         
         max(ie + zero_ind - lener + 1, 0) <= ie1 < min(ie + zero_ind + 1, lener)
+
+        usage 3: convolute a spec_class with a stick array
+
+        spec(E) = \sum_j I_j spec1(E - E_j) 
+
+        I_j's are stick heights and E_j's stick energies.
+
+        I_j's are expected to be dimensionless.
         
         """
-        
+    
+        # usage 1: a spec_class and a constant
+        if isinstance(other, numbers.Number):
+            spec = spec_class(ener_axis = self.ener_axis)
+            spec.I = self.I * other
+            return spec
+        # usage 3: a spec_class and a stick array
+        if isinstance(other, list):
+            if len(other) > 0 and len(other[0]) > 2: # then it is a stick array
+                spec = spec_class(ener_axis = self.ener_axis)
+                spec.I = sp.zeros(self.I.shape)
+                for stick in other: # *** to be parallelized
+                    e_ind = int(stick[0] / self.dE)
+                    l = stick[0] % self.dE
+                    if e_ind >= 0:
+                        spec.I[e_ind + 1 : , :] += ( (1 - l) * self.I[: -e_ind - 1, :] + l * self.I[1 : -e_ind, :] ) * stick[2]
+                    else:
+                        spec.I[: e_ind - 1, :] += ( l * self.I[-e_ind : -1, :] + (1 - l) * self.I[-e_ind + 1 :, :] ) * stick[2]
+                return spec
+        if not isinstance(other, spec_class):
+            raise TypeError('unsupported operand type(s) for *')
+        # usage 2
         if not same_axis(self, other):
             raise IndexError('cannot convolute spectra with different energy axes.')
         if abs(self.ener_axis[self.zero_ind]) > small_thr:
