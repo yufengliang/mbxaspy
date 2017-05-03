@@ -10,6 +10,7 @@ from defs import *
 from init import *
 from spectra import *
 from analysis import *
+from bse import *
 
 # input user-defined arguments from stdin
 user_input.read()
@@ -53,8 +54,11 @@ global_ener_axis = spec_class(user_input).ener_axis
 global_offset = user_input.ESHIFT_FINAL + fscf.e_lowest
 
 # initialize i and f spec0
-spec0_i = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
-if user_input.final_1p: spec0_f = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
+def init_spec(nspin = 1):
+    return [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
+spec0_i = init_spec(nspin)
+if user_input.final_1p: spec0_f = init_spec(nspin)
+if user_input.want_bse: spec_bse = init_spec(nspin)
 
 ## setup ixyz list *** need more works
 ixyz_list = [-1, 0, 1, 2] # user_input.ixyz_list
@@ -136,6 +140,11 @@ for isk in range(pool.nsk):
 
         para.print('  Matrix xi finished. ', flush = True)
 
+        ## BSE spectra
+        if user_input.want_bse:
+            sticks = bse(xi, iscf, fscf, nocc, ixyz_list, evec = user_input.EVEC)
+            spec_bse[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
+
         ## XPS spectra (N X N)
         para.sep_line(second_sepl)
         para.print('  Calculating many-body XPS spectra ... ')
@@ -147,7 +156,7 @@ for isk in range(pool.nsk):
                                  comm = pool.comm, 
                                  zeta_analysis = user_input.zeta_analysis and ik == 0)
 
-        spec_xps_isk = spec_class(ener_axis = global_ener_axis)
+        spec_xps_isk = init_spec()[0]
 
         sticks_all_order = []
         para.print(fn_fmt.format('order', '#sticks', 'stick max', 'os sum'))
@@ -160,6 +169,7 @@ for isk in range(pool.nsk):
             if len(sticks) > 0:
                 para.print(fn_num_fmt.format( order, len(sticks), max([s[2] for s in sticks]), os_sum(sticks)[0]))
 
+            # don't use prefac here
             spec_xps_isk.add_sticks(sticks, user_input, mode = 'additive')
 
         spec_xps_all.append(spec_xps_isk)
@@ -180,7 +190,7 @@ for isk in range(pool.nsk):
         para.sep_line(second_sepl)
         para.print('  Calculating many-body XAS spectra ... ')
 
-        spec_xas_isk = spec_class(ener_axis = global_ener_axis)
+        spec_xas_isk = init_spec()[0]
 
         for ixyz in ixyz_list_:
 
@@ -257,6 +267,12 @@ if user_input.final_1p:
 if user_input.spec0_only:
     para.done() # debug
 
+## Output BSE spectra
+if user_input.want_bse:
+    if nspin == 1: spec_bse = spec_bse[0]
+    else:   spec_bse = spec_bse[0] | spec_bse[1] # mix spin up and down
+    if para.isroot(): spec_bse.savetxt(spec_bse_fname, offset = global_offset)
+
 ## Calculate total many-body spectra 
 
 # convolute spin-up and -down spectra if nspin == 2
@@ -291,8 +307,8 @@ if nspin == 2:
 
 # intrapool summation
 
-spec_xps = spec_class(ener_axis = global_ener_axis)
-spec_xas = [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
+spec_xps = init_spec()[0]
+spec_xas = init_spec(nspin)
 
 for isk, sk in enumerate(pool.sk_list):
     ispin, ik = sk

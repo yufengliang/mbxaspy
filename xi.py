@@ -76,7 +76,7 @@ def compute_xi(iscf, fscf):
                             * fscf.proj.beta_nk[proj_range, : fscf.nbnd_use]
                 proj_offset += nprojs
 
-        xi      = xi.transpose() # fscf.nbnd_use x iscf.nbnd_use. This is important !
+        xi      = xi.T # fscf.nbnd_use x iscf.nbnd_use. This is important !
 
         return xi
 
