@@ -142,7 +142,7 @@ for isk in range(pool.nsk):
 
         ## BSE spectra
         if user_input.want_bse:
-            sticks = bse(xi, iscf, fscf, nocc, ixyz_list, evec = user_input.EVEC)
+            sticks = bse(xi, iscf, fscf, nocc, ixyz_list, offset = -fscf.e_lowest, evec = user_input.EVEC)
             spec_bse[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
 
         ## XPS spectra (N X N)

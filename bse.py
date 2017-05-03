@@ -7,7 +7,7 @@ from constants import *
 from init import *
 from spectra import *
 
-def bse(xi, iscf, fscf, nocc, ixyz_list, evec = None):
+def bse(xi, iscf, fscf, nocc, ixyz_list, offset = 0.0, evec = None):
     """
     Construct the BSE Hamiltonian with only empty initial-state orbitals
 
@@ -29,7 +29,7 @@ def bse(xi, iscf, fscf, nocc, ixyz_list, evec = None):
 
     # Make sticks
     sticks = sp.zeros((len(E), len(ixyz_list) + 2))
-    sticks[:, 0] = E.real
+    sticks[:, 0] = E.real + offset
     for i, ixyz in enumerate(ixyz_list):
 
         ixmat = sp.array([ xmat_ixyz( iscf.xmat[ib, 0, :], ixyz, evec = evec ) for ib in range(int(nocc), iscf.nbnd_use) ])
