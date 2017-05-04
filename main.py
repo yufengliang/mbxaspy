@@ -110,6 +110,7 @@ for isk in range(pool.nsk):
     sticks = xmat_to_sticks(iscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = user_input.EVEC)
     spec0_i[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
     spec0_i_os_sum = os_sum(sticks)
+    sp.savetxt('spec0_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
 
     # final-state
     if user_input.final_1p:
@@ -144,6 +145,7 @@ for isk in range(pool.nsk):
         if user_input.want_bse:
             sticks = bse(xi, iscf, fscf, nocc, ixyz_list, offset = -fscf.e_lowest, evec = user_input.EVEC)
             spec_bse[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
+            sp.savetxt('bse_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
 
         ## XPS spectra (N X N)
         para.sep_line(second_sepl)

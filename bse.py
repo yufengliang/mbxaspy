@@ -36,6 +36,7 @@ def bse(xi, iscf, fscf, nocc, ixyz_list, offset = 0.0, evec = None):
         
         # transition amplitude: A_op = sum_i Af*_i < i | O | h >
         A_op = sp.dot(ixmat, sp.matrix(Af).conjugate())
+        #A_op = sp.dot(ixmat, sp.matrix(Af))
         
         sticks[:, i + 2] = sp.square(abs(A_op))
 
