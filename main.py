@@ -321,9 +321,7 @@ spec_xps *= weight
 spec_xps.mp_sum(pool.rootcomm)
 for ispin in range(nspin):
     spec_xas[ispin].mp_sum(pool.rootcomm)
-
-if nspin == 1: spec_xas = spec_xas[0]
-else:   spec_xas = spec_xas[0] | spec_xas[1] # mix spin up and down
+spec_xas = mix_spin(spec_xas)
 
 # This requires the world root is also one of the pool roots: can be made more robust
 if para.isroot():
