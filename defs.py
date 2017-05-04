@@ -50,6 +50,7 @@ class user_input_class(object):
         self.do_paw_correction = True       # perform PAW corrections
         self.spec0_only     = False         # Calculate one-body / non-interacing spectra only
         self.want_bse       = False         # Want to calculate BSE spectra
+        self.want_spec_o     = False         # Convolute the spec0_i with spec_xps
 
     def read(self):
         """ input from stdin or userin"""

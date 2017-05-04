@@ -329,5 +329,11 @@ if para.isroot():
     spec_xps.savetxt(spec_xps_fname + postfix)
     spec_xas.savetxt(spec_xas_fname + postfix, offset = global_offset)
 
+## Convolute the initial-state spectrum with XPS: test orthogonality
+if user_input.want_spec_o:
+    spec_o = spec0_i * spec_xps
+    if para.isroot():
+        spec_o.savetxt(spec_o_fname, offset = global_offset) 
+
 para.done()
 # Bye ! ~
