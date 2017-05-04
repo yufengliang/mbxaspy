@@ -246,21 +246,19 @@ for isk in range(pool.nsk):
 
 ## Output one-body spectra
 
+def mix_spin(spec):
+    # mix spin up and down
+    return spec[0] if nspin == 1 else spec[0] | spec[1]
+
 # intial-state one-body
 for ispin in range(nspin): spec0_i[ispin].mp_sum(pool.rootcomm) 
-
-if nspin == 1: spec0_i = spec0_i[0]
-else:   spec0_i = spec0_i[0] | spec0_i[1] # mix spin up and down
-
+spec0_i = mix_spin(spec0_i)
 if para.isroot(): spec0_i.savetxt(spec0_i_fname, offset = global_offset)
 
 # final-state one-body
 if user_input.final_1p:
     for ispin in range(nspin): spec0_f[ispin].mp_sum(pool.rootcomm) 
-
-    if nspin == 1: spec0_f = spec0_f[0]
-    else:   spec0_f = spec0_f[0] | spec0_f[1] # mix spin up and down
-
+    spec0_f = mix_spin(spec0_f)
     if para.isroot(): spec0_f.savetxt(spec0_f_fname, offset = global_offset)
 
 # spec0_sum = spec0_i[0] + spec0_f[0] # test operator overload
@@ -271,8 +269,8 @@ if user_input.spec0_only:
 
 ## Output BSE spectra
 if user_input.want_bse:
-    if nspin == 1: spec_bse = spec_bse[0]
-    else:   spec_bse = spec_bse[0] | spec_bse[1] # mix spin up and down
+    for ispin in range(nspin): spec_bse[ispin].mp_sum(pool.rootcomm) 
+    spec_bse = mix_spin(spec_bse)
     if para.isroot(): spec_bse.savetxt(spec_bse_fname, offset = global_offset)
 
 ## Calculate total many-body spectra 
