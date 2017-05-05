@@ -54,15 +54,15 @@ para.print()
 
 
 # user input
-user_input = user_input_class()
-__all__ += ['user_input']
+userin = user_input_class()
+__all__ += ['userin']
 
 # Pass attributes
 for obj in ['scf_class', 'optimal_basis_set_class', 'proj_class', 'user_input_class']:
     for attr in ['sp', 'para']:
         setattr(eval(obj), attr, eval(attr))
 
-scf_class.userin = user_input
+scf_class.userin = userin
 
 # initial- and final-state scf
 iscf = scf_class()

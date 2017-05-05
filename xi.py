@@ -47,7 +47,6 @@ def compute_xi(iscf, fscf):
     """ 
     compute the xi matrix using two given scfs
     """
-    userin  = user_input
 
     if userin.scf_type == 'shirley_xas':
 

@@ -13,36 +13,36 @@ from analysis import *
 from bse import *
 
 ## input user-defined arguments from stdin
-user_input.read()
+userin.read()
 
 
 ## Check initial and final state and perform sanity checks
 # Check the initial-state scf calculations
 para.sep_line()
-para.print(' Checking initial-state scf from: \n ' + user_input.path_i + '\n')
+para.print(' Checking initial-state scf from: \n ' + userin.path_i + '\n')
 iscf.input(isk = -1)
 
 # Check the final-state scf calculations
 para.sep_line()
-para.print(' Checking final-state scf from: \n ' + user_input.path_f + '\n')
+para.print(' Checking final-state scf from: \n ' + userin.path_f + '\n')
 fscf.input(is_initial = False, isk = -1, nelec = iscf.nelec)
 
-if user_input.scf_type == 'shirley_xas':
+if userin.scf_type == 'shirley_xas':
     # Important: Need to tell iscf the index of core
     iscf.proj.icore = fscf.proj.icore
 
     # Input < B_i | \tilde{B}_j >
-    fscf.obf.input_overlap(user_input.path_f, iscf.nbnd, fscf.nbnd)
+    fscf.obf.input_overlap(userin.path_f, iscf.nbnd, fscf.nbnd)
 
 nspin = iscf.nspin
 
 
 ## initialize spectral information
-if not user_input.spec0_only:
+if not userin.spec0_only:
 
     from xi import *
     # Compute full atomic overlap sij
-    if user_input.scf_type == 'shirley_xas': 
+    if userin.scf_type == 'shirley_xas': 
         compute_full_sij(fscf.proj)
 
     from determinants import *
@@ -50,22 +50,22 @@ if not user_input.spec0_only:
     sticks_xps_all = []
     spec_xas_all = []
 
-global_ener_axis = spec_class(user_input).ener_axis
+global_ener_axis = spec_class(userin).ener_axis
 # if para.isroot(): sp.savetxt('ener_axis.dat', global_ener_axis) # debug
 
 # global energy shift
-global_offset = user_input.ESHIFT_FINAL + fscf.e_lowest
+global_offset = userin.ESHIFT_FINAL + fscf.e_lowest
 
 # initialize i and f spec0
 def init_spec(nspin = 1):
     return [spec_class(ener_axis = global_ener_axis) for s in range(nspin)]
 spec0_i = init_spec(nspin)
-if user_input.final_1p: spec0_f = init_spec(nspin)
-if user_input.want_bse: spec_bse = init_spec(nspin)
+if userin.final_1p: spec0_f = init_spec(nspin)
+if userin.want_bse: spec_bse = init_spec(nspin)
 
 
 ## setup ixyz list *** need more works
-ixyz_list = [-1, 0, 1, 2] # user_input.ixyz_list
+ixyz_list = [-1, 0, 1, 2] # userin.ixyz_list
 # if not completed
 ixyz_list_ = ixyz_list[:]
 if -1 in ixyz_list:
@@ -99,7 +99,7 @@ for isk in range(pool.nsk):
     para.sep_line(second_sepl)
     para.print(' Importing final-state scf\n', flush = True)
     fscf.input(is_initial = False, isk = isk)
-    if user_input.final_1p: para.print('  xmat: the {0}th atom in ATOMIC_POSITIONS card is excited.'.format(xatom(fscf.proj, fscf.xmat) + 1))
+    if userin.final_1p: para.print('  xmat: the {0}th atom in ATOMIC_POSITIONS card is excited.'.format(xatom(fscf.proj, fscf.xmat) + 1))
 
     # Obtain the effective occupation number: respect the initial-state #electrons
     if nspin == 1: nocc = iscf.nocc
@@ -112,20 +112,20 @@ for isk in range(pool.nsk):
     # print(sticks[0]) debug
 
     # initial-state
-    sticks = xmat_to_sticks(iscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = user_input.EVEC)
-    spec0_i[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
+    sticks = xmat_to_sticks(iscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
+    spec0_i[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
     spec0_i_os_sum = os_sum(sticks)
     # sp.savetxt('spec0_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
 
     # final-state
-    if user_input.final_1p:
-        sticks = xmat_to_sticks(fscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = user_input.EVEC)
-        spec0_f[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
+    if userin.final_1p:
+        sticks = xmat_to_sticks(fscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
+        spec0_f[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
     
     para.print('  One-body spectra finished.', flush = True)
 
     ## Compute many-body spectra
-    if not user_input.spec0_only:
+    if not userin.spec0_only:
 
         para.print('  Calculating many-body spectra ... ')
 
@@ -137,7 +137,7 @@ for isk in range(pool.nsk):
         xi_eigvals = la.eigvals(xi[: size, : size])
         para.print('  Average of the eigenvalues of xi: {}'.format( sp.sum(abs(xi_eigvals)) / size ))
 
-        if user_input.xi_analysis and para.isroot() and ik == 0:
+        if userin.xi_analysis and para.isroot() and ik == 0:
             plot_xi(xi) # debug
             if nspin > 1:
                 msg = eig_analysis_xi(xi, '_spin_{0}'.format(ispin)) # debug
@@ -147,9 +147,9 @@ for isk in range(pool.nsk):
         para.print('  Matrix xi finished. ', flush = True)
 
         ## BSE spectra
-        if user_input.want_bse:
-            sticks = bse(xi, iscf, fscf, nocc, ixyz_list, offset = -fscf.e_lowest, evec = user_input.EVEC)
-            spec_bse[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
+        if userin.want_bse:
+            sticks = bse(xi, iscf, fscf, nocc, ixyz_list, offset = -fscf.e_lowest, evec = userin.EVEC)
+            spec_bse[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
             # sp.savetxt('bse_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
 
         ## XPS spectra (N X N)
@@ -157,11 +157,11 @@ for isk in range(pool.nsk):
         para.print('  Calculating many-body XPS spectra ... ')
 
         Af_list, msg = quick_det(xi[:, 0 : int(nocc)], ener = fscf.obf.eigval,
-                                 fix_v1 = False, maxfn = user_input.maxfn - 1,
-                                 I_thr = user_input.I_thr,
-                                 e_lo_thr = user_input.ELOW, e_hi_thr = user_input.EHIGH, 
+                                 fix_v1 = False, maxfn = userin.maxfn - 1,
+                                 I_thr = userin.I_thr,
+                                 e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
                                  comm = pool.comm, 
-                                 zeta_analysis = user_input.zeta_analysis and ik == 0)
+                                 zeta_analysis = userin.zeta_analysis and ik == 0)
 
         spec_xps_isk = init_spec()[0]
 
@@ -177,7 +177,7 @@ for isk in range(pool.nsk):
                 para.print(fn_num_fmt.format( order, len(sticks), max([s[2] for s in sticks]), os_sum(sticks)[0]))
 
             # don't use prefac here
-            spec_xps_isk.add_sticks(sticks, user_input, mode = 'additive')
+            spec_xps_isk.add_sticks(sticks, userin, mode = 'additive')
 
         spec_xps_all.append(spec_xps_isk)
         sticks_xps_all.append(sticks_all_order)
@@ -208,7 +208,7 @@ for isk in range(pool.nsk):
 
             para.print('  ixyz = {0}'.format(ixyz))
             # Compute xi_c
-            ixmat = sp.array([ xmat_ixyz( iscf.xmat[ib, 0, :], ixyz, evec = user_input.EVEC ) for ib in range(iscf.nbnd_use) ])
+            ixmat = sp.array([ xmat_ixyz( iscf.xmat[ib, 0, :], ixyz, evec = userin.EVEC ) for ib in range(iscf.nbnd_use) ])
             # xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc, iscf.nbnd_use)
             xi_c = compute_xi_c(xi, ixmat, nocc, iscf.nbnd_use)
             # para.print('xi_c.shape = {0}'.format(str(xi_c.shape))) # debug
@@ -217,11 +217,11 @@ for isk in range(pool.nsk):
             xi_c_ = sp.concatenate((xi[:, 0 : int(nocc)], xi_c), axis = 1)
 
             Af_list, msg = quick_det(xi_c_, ener = fscf.obf.eigval,
-                                     fix_v1 = True, maxfn = user_input.maxfn,
-                                     I_thr = user_input.I_thr,
-                                     e_lo_thr = user_input.ELOW, e_hi_thr = user_input.EHIGH, 
+                                     fix_v1 = True, maxfn = userin.maxfn,
+                                     I_thr = userin.I_thr,
+                                     e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
                                      comm = pool.comm, 
-                                     zeta_analysis = user_input.zeta_analysis and ik == 0)
+                                     zeta_analysis = userin.zeta_analysis and ik == 0)
 
             para.print(fn_fmt.format('order', '#sticks', 'stick max', 'os sum'))
 
@@ -233,7 +233,7 @@ for isk in range(pool.nsk):
                 if len(sticks) > 0:
                     para.print(fn_num_fmt.format( order + 1, len(sticks), max([s[2] for s in sticks]), os_sum(sticks)[0] / spec0_i_os_sum[ixyz]))
 
-                spec_xas_isk.add_sticks(sticks, user_input, prefac, mode = 'additive')
+                spec_xas_isk.add_sticks(sticks, userin, prefac, mode = 'additive')
 
             para.print()
         # end of ixyz
@@ -261,7 +261,7 @@ spec0_i = mix_spin(spec0_i)
 if para.isroot(): spec0_i.savetxt(spec0_i_fname, offset = global_offset)
 
 # final-state one-body
-if user_input.final_1p:
+if userin.final_1p:
     for ispin in range(nspin): spec0_f[ispin].mp_sum(pool.rootcomm) 
     spec0_f = mix_spin(spec0_f)
     if para.isroot(): spec0_f.savetxt(spec0_f_fname, offset = global_offset)
@@ -269,11 +269,11 @@ if user_input.final_1p:
 # spec0_sum = spec0_i[0] + spec0_f[0] # test operator overload
 # spec0_sum.savetxt('spec0_sum.dat')
 
-if user_input.spec0_only:
+if userin.spec0_only:
     para.done() # debug
 
 ## Output BSE spectra
-if user_input.want_bse:
+if userin.want_bse:
     for ispin in range(nspin): spec_bse[ispin].mp_sum(pool.rootcomm) 
     spec_bse = mix_spin(spec_bse)
     if para.isroot(): spec_bse.savetxt(spec_bse_fname, offset = global_offset)
@@ -335,7 +335,7 @@ if para.isroot():
     spec_xas.savetxt(spec_xas_fname + postfix, offset = global_offset)
 
 ## Convolute the initial-state spectrum with XPS: test orthogonality
-if user_input.want_spec_o:
+if userin.want_spec_o:
     spec_o = spec0_i * spec_xps
     if para.isroot():
         spec_o.savetxt(spec_o_fname, offset = global_offset) 
