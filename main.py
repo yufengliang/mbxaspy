@@ -12,10 +12,11 @@ from spectra import *
 from analysis import *
 from bse import *
 
-# input user-defined arguments from stdin
+## input user-defined arguments from stdin
 user_input.read()
 
-# Check initial and final state and perform sanity checks
+
+## Check initial and final state and perform sanity checks
 # Check the initial-state scf calculations
 para.sep_line()
 para.print(' Checking initial-state scf from: \n ' + user_input.path_i + '\n')
@@ -26,27 +27,29 @@ para.sep_line()
 para.print(' Checking final-state scf from: \n ' + user_input.path_f + '\n')
 fscf.input(is_initial = False, isk = -1, nelec = iscf.nelec)
 
-# Important: Need to tell iscf the index of core
 if user_input.scf_type == 'shirley_xas':
+    # Important: Need to tell iscf the index of core
     iscf.proj.icore = fscf.proj.icore
 
-# Input < B_i | \tilde{B}_j >
-fscf.obf.input_overlap(user_input.path_f, iscf.nbnd, fscf.nbnd)
+    # Input < B_i | \tilde{B}_j >
+    fscf.obf.input_overlap(user_input.path_f, iscf.nbnd, fscf.nbnd)
 
-from xi import *
-# Compute full atomic overlap sij
-if user_input.scf_type == 'shirley_xas': 
-    compute_full_sij(fscf.proj)
+nspin = iscf.nspin
 
+
+## initialize spectral information
 if not user_input.spec0_only:
+
+    from xi import *
+    # Compute full atomic overlap sij
+    if user_input.scf_type == 'shirley_xas': 
+        compute_full_sij(fscf.proj)
+
     from determinants import *
     spec_xps_all = []   
     sticks_xps_all = []
     spec_xas_all = []
 
-nspin = iscf.nspin
-
-# initialize the energy axis for spectra
 global_ener_axis = spec_class(user_input).ener_axis
 # if para.isroot(): sp.savetxt('ener_axis.dat', global_ener_axis) # debug
 
@@ -60,6 +63,7 @@ spec0_i = init_spec(nspin)
 if user_input.final_1p: spec0_f = init_spec(nspin)
 if user_input.want_bse: spec_bse = init_spec(nspin)
 
+
 ## setup ixyz list *** need more works
 ixyz_list = [-1, 0, 1, 2] # user_input.ixyz_list
 # if not completed
@@ -70,6 +74,7 @@ if -1 in ixyz_list:
 # output format
 fn_fmt      = 'f^(n)/statistics\n!{:>8} {:>10}  {:>12}  {:>12}'
 fn_num_fmt  =                   '!{:>8} {:>10}  {:>12.7}  {:>12.7}' 
+
 
 ## loop over spin and kpoints
 for isk in range(pool.nsk):
@@ -110,7 +115,7 @@ for isk in range(pool.nsk):
     sticks = xmat_to_sticks(iscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = user_input.EVEC)
     spec0_i[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
     spec0_i_os_sum = os_sum(sticks)
-    sp.savetxt('spec0_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
+    # sp.savetxt('spec0_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
 
     # final-state
     if user_input.final_1p:
@@ -145,7 +150,7 @@ for isk in range(pool.nsk):
         if user_input.want_bse:
             sticks = bse(xi, iscf, fscf, nocc, ixyz_list, offset = -fscf.e_lowest, evec = user_input.EVEC)
             spec_bse[ispin].add_sticks(sticks, user_input, prefac, mode = 'additive')
-            sp.savetxt('bse_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
+            # sp.savetxt('bse_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
 
         ## XPS spectra (N X N)
         para.sep_line(second_sepl)
