@@ -4,12 +4,13 @@ from __future__ import print_function
 
 import sys
 import os
+import copy
+
+__all__ = ['sys', 'os', 'copy']
 
 from utils import *
 from defs import *
 from para_defs import *
-
-__all__ = ['sys', 'os']
 
 # initialize mpi environment
 para = para_class()

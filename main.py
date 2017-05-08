@@ -63,6 +63,12 @@ spec0_i = init_spec(nspin)
 if userin.final_1p: spec0_f = init_spec(nspin)
 if userin.want_bse: spec_bse = init_spec(nspin)
 
+if userin.spec_analysis:
+    # perform analysis on spectra at Gamma-point only
+    def init_order(): return [[None] * 2 for order in range(userin.maxfn)]
+    spec_xps_g,     spec_xas_g      = init_order(), init_order()
+    sticks_xps_g,   sticks_xas_g    = init_order(), init_order()
+
 
 ## setup ixyz list *** need more works
 ixyz_list = [-1, 0, 1, 2] # userin.ixyz_list
@@ -170,7 +176,8 @@ for isk in range(pool.nsk):
         for order, Af in enumerate(Af_list):
 
             sticks = Af_to_sticks(Af)
-            sticks_all_order += sticks
+            #sticks_all_order += sticks
+            sticks_all_order.append(sticks)
 
             # important information for understanding shakeup effects and convergence
             if len(sticks) > 0:
@@ -178,6 +185,10 @@ for isk in range(pool.nsk):
 
             # don't use prefac here
             spec_xps_isk.add_sticks(sticks, userin, mode = 'additive')
+
+            if userin.spec_analysis and ik == 0:
+                spec_xps_g[order][ispin] = copy.deepcopy(spec_xps_isk)
+                sticks_xps_g[order][ispin] = sticks
 
         spec_xps_all.append(spec_xps_isk)
         sticks_xps_all.append(sticks_all_order)
@@ -235,11 +246,18 @@ for isk in range(pool.nsk):
 
                 spec_xas_isk.add_sticks(sticks, userin, prefac, mode = 'additive')
 
+                if userin.spec_analysis and ik == 0:
+                    spec_xas_g[order][ispin] = copy.deepcopy(spec_xas_isk)
+
             para.print()
         # end of ixyz
         # go back and deal with average
         if -1 in ixyz_list_:
-            spec_xas_isk.average([ind for ind, ixyz in enumerate(ixyz_list_) if ixyz in [0, 1, 2]], ixyz_list_.index(-1))
+            col_ind = [ind for ind, ixyz in enumerate(ixyz_list_) if ixyz in [0, 1, 2]]
+            spec_xas_isk.average(col_ind, ixyz_list_.index(-1))
+            if userin.spec_analysis:
+                for order in range(userin.maxfn):
+                    spec_xas_g[order][ispin].average(col_ind, ixyz_list_.index(-1))
 
         spec_xas_isk.savetxt(spec_xas_fname + postfix, offset = global_offset)
         spec_xas_all.append(spec_xas_isk)
@@ -292,9 +310,9 @@ if nspin == 2:
             pool.log('Unsupported distribution of sk-tuples', flush = True)
             para.exit()
         ind = pool.sk_list.index((1 - ispin, ik))
-        #spec_xps_twin = spec_xps_all[ind]
-        #spec_xas_all[isk] *= spec_xps_twin
-        spec_xas_all[isk] *= sticks_xps_all[ind]
+        sticks_xps_twin = []
+        for order in range(userin.maxfn): sticks_xps_twin += sticks_xps_all[ind][order]
+        spec_xas_all[isk] *= sticks_twin
 
     # convolute xps spectra
     isk_done = []
@@ -303,12 +321,22 @@ if nspin == 2:
         if isk in isk_done: continue
         ispin, ik = sk
         ind = pool.sk_list.index((1 - ispin, ik)) # don't need to check existence again
-        #spec_xps_twin = spec_xps_all[ind]
-        #spec_xps_all[isk] *= spec_xps_twin
-        spec_xps_all[isk] *= sticks_xps_all[ind]
+        sticks_xps_twin = []
+        for order in range(userin.maxfn): sticks_xps_twin += sticks_xps_all[ind][order]
+        spec_xps_all[isk] *= sticks_xps_twin
         # the two spin channels are the same for xps
         spec_xps_all[ind] = spec_xps_all[isk] # note that the twins are correlated now (use deepcopy to uncorrelate them)
         isk_done += [isk, ind]
+
+    # convolute gamma-point spectra for analysis
+    if userin.spec_analysis:
+        for ispin in range(nspin):
+
+            sticks_xps_twin = []
+            for order in range(userin.maxfn):
+                sticks_xps_twin += sticks_xps_all[ind][order]
+                spec_xas_g[order][ispin] *= sticks_xps_g[order][1 - ispin]
+                if ispin == 0: spec_xps_g[order][ispin] *= sticks_xps_g[order][1 - ispin]
 
 # intrapool summation
 
@@ -340,5 +368,10 @@ if userin.want_spec_o:
     if para.isroot():
         spec_o.savetxt(spec_o_fname, offset = global_offset) 
 
-para.done()
+if userin.spec_analysis and para.isroot():
+    for order in range(userin.maxfn):
+        mix_spin(spec_xas_g[order]).savetxt(spec_xas_fname + '_maxfn_{}.dat'.format(order + 1), offset = global_offset)
+        spec_xps_g[order][0].savetxt(spec_xps_fname + '_maxfn_{}.dat'.format(order))
+
 # Bye ! ~
+para.done()
