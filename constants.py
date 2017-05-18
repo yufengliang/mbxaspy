@@ -34,3 +34,6 @@ det_thr_label           = 0.8       # % threshold for labeling determinants
 
 # physics constants
 Ryd = 13.605698065894
+
+# other
+elem_maxl = 5

@@ -202,7 +202,7 @@ def atomic_species_to_list(asp_str):
     res = []
     for l in asp_str.split('\n'):
         words = l.split()
-        if len(words) == 3 and len(words[0]) < 3 and words[2].split('.')[-1] == 'UPF': 
+        if len(words) == 3 and len(words[0]) < elem_maxl and words[2].split('.')[-1] == 'UPF': 
             # *** There should be more robust sanity checks: check elements
             res.append([words[0], words[2]])
     return res
@@ -219,7 +219,7 @@ def atomic_positions_to_list(apos_str):
     res = []
     for l in apos_str.split('\n'):
         words = l.split()
-        if len(words) >= 4 and len(words[0]) < 3:
+        if len(words) >= 4 and len(words[0]) < elem_maxl:
             # *** There should be more robust sanity checks: check elements
             res.append(words)
     return res
