@@ -170,7 +170,7 @@ class optimal_basis_set_class(object):
         try:
             self.overlap = self.sp.matrix(self.overlap).reshape(nbnd2, nbnd1).transpose()
         except ValueError as vle:
-            self.para.error(vle + '\n Insufficient data in {0} for nbnd1 = {1} and nbnd2 = {2}'.format(fname, nbnd1, nbnd2))
+            self.para.error(str(vle) + '\n Insufficient data in {}({})for nbnd1 = {} and nbnd2 = {}'.format(fname, len(self.overlap), nbnd1, nbnd2))
         # self.para.print(self.overlap[0:2, 0:5]) # debug
         fh.close()
         self.para.print('  Overlap matrix < B_i | ~B_j > imported from {0}'.format(fname))
