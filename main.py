@@ -312,7 +312,7 @@ if nspin == 2:
         ind = pool.sk_list.index((1 - ispin, ik))
         sticks_xps_twin = []
         for order in range(userin.maxfn): sticks_xps_twin += sticks_xps_all[ind][order]
-        spec_xas_all[isk] *= sticks_twin
+        spec_xas_all[isk] *= sticks_xps_twin
 
     # convolute xps spectra
     isk_done = []
