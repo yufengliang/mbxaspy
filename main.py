@@ -331,7 +331,7 @@ if nspin == 2:
     # convolute gamma-point spectra for analysis
     if userin.spec_analysis:
         for ispin in range(nspin):
-
+            ind = pool.sk_list.index((1 - ispin, 0))
             sticks_xps_twin = []
             for order in range(userin.maxfn):
                 sticks_xps_twin += sticks_xps_all[ind][order]
