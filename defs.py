@@ -466,10 +466,17 @@ class scf_class(object):
                 if is_initial and not para.pool.up:
                     # set up pools
                     nsk = self.nk_use * self.nspin
-                    if nsk < para.size / userin.nproc_per_pool:
-                        para.print(' Too few (spin, k) tuples ({0}) to calculate for {1} pools.'.format(nsk, int(para.size / userin.nproc_per_pool)))
-                        para.print(' Increase nproc_per_pool to {0}\n'.format(int(para.size / nsk)))
-                        userin.nproc_per_pool = int(para.size / nsk)
+                    # if (0, k) and (1, k) can be treated on different pools
+                    # if nsk < para.size / userin.nproc_per_pool:
+                    #    para.print(' Too few (spin, k) tuples ({0}) to calculate for {1} pools.'.format(nsk, int(para.size / userin.nproc_per_pool)))
+                    #    userin.nproc_per_pool = int(para.size / nsk)
+                    #    para.print(' Increase nproc_per_pool to {0}\n'.format(int(userin.nproc_per_pool))
+
+                    # if (0, k) and (1, k) can only be treated on the same pool
+                    if self.nk_use < para.size / userin.nproc_per_pool:
+                        para.print(' Too few k-points ({0}) to calculate for {1} pools.'.format(self.nk_use, int(para.size / userin.nproc_per_pool)))
+                        userin.nproc_per_pool = int(para.size / self.nk_use) # for the contiguous mode
+                        para.print(' Increase nproc_per_pool to {0}\n'.format(int(userin.nproc_per_pool)))
 
                     para.pool.set_pool(userin.nproc_per_pool)
                     para.pool.info()
