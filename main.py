@@ -262,12 +262,14 @@ for isk in range(pool.nsk):
         spec_xas_isk.savetxt(spec_xas_fname + postfix, offset = global_offset)
         spec_xas_all.append(spec_xas_isk)
 
-        para.print('  Many-body XAS spectra finished. ', flush = True)
+        para.print('  Many-body XAS spectra finished. \n', flush = True)
         # end of ixyz
     # end if spec0_only
 # end of isk
 
 ## Output one-body spectra
+
+para.print('Output one-body spectra ...', flush = True)
 
 def mix_spin(spec):
     # mix spin up and down
@@ -287,6 +289,8 @@ if userin.final_1p:
 # spec0_sum = spec0_i[0] + spec0_f[0] # test operator overload
 # spec0_sum.savetxt('spec0_sum.dat')
 
+para.print('one-body spectra output to files.\n', flush = True)
+
 if userin.spec0_only:
     para.done() # debug
 
@@ -301,6 +305,8 @@ if userin.want_bse:
 # convolute spin-up and -down spectra if nspin == 2
 if nspin == 2:
 
+    para.print('Calculating total many-body spectra for nspin = 2.', flush = True)
+
     # convolute xas spectra: do this before xps
     for isk, sk in enumerate(pool.sk_list):
         ispin, ik = sk
@@ -313,6 +319,7 @@ if nspin == 2:
         sticks_xps_twin = []
         for order in range(userin.maxfn): sticks_xps_twin += sticks_xps_all[ind][order]
         spec_xas_all[isk] *= sticks_xps_twin
+    para.print(' many-body XAS convoluted.', flush = True)
 
     # convolute xps spectra
     isk_done = []
@@ -327,6 +334,7 @@ if nspin == 2:
         # the two spin channels are the same for xps
         spec_xps_all[ind] = spec_xps_all[isk] # note that the twins are correlated now (use deepcopy to uncorrelate them)
         isk_done += [isk, ind]
+    para.print(' many-body XPS convoluted.', flush = True)
 
     # convolute gamma-point spectra for analysis
     if userin.spec_analysis:
@@ -337,6 +345,7 @@ if nspin == 2:
                 sticks_xps_twin += sticks_xps_all[ind][order]
                 spec_xas_g[order][ispin] *= sticks_xps_g[order][1 - ispin]
                 if ispin == 0: spec_xps_g[order][ispin] *= sticks_xps_g[order][1 - ispin]
+    para.print(' many-body XPS at gamma convoluted.\n', flush = True)
 
 # intrapool summation
 
@@ -351,10 +360,12 @@ for isk, sk in enumerate(pool.sk_list):
 spec_xps *= weight
 
 # mpi reduce
+para.print('Collecting spectra at all k-points...', flush = True)
 spec_xps.mp_sum(pool.rootcomm)
 for ispin in range(nspin):
     spec_xas[ispin].mp_sum(pool.rootcomm)
 spec_xas = mix_spin(spec_xas)
+para.print('Spectra at all k-points collected.\n', flush = True)
 
 # This requires the world root is also one of the pool roots: can be made more robust
 if para.isroot():
