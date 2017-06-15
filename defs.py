@@ -537,6 +537,7 @@ class scf_class(object):
             if f == 'eigvec':
                 para.print('  Obf Wavefunctions : ')
                 self.obf.input_eigvec(fh, para.pool.sk_offset[isk])
+                self.obf.eigvec = self.obf.eigvec[:, : self.nbnd_use] # resize to save memory
                 self.eigvec = self.obf.eigvec
                 para.print(flush = True)
 
