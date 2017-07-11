@@ -276,7 +276,12 @@ def mix_spin(spec):
     return spec[0] if nspin == 1 else spec[0] | spec[1]
 
 # intial-state one-body
-for ispin in range(nspin): spec0_i[ispin].mp_sum(pool.rootcomm) 
+para.print('mp_summing ...', flush = True)
+for ispin in range(nspin):
+    print('ispin = ', ispin, 'rank = ', para.rank, 'rootcomm = ', pool.rootcomm)#debug
+    sys.stdout.flush()
+    spec0_i[ispin].mp_sum(pool.rootcomm) 
+para.print('mp_summed ...', flush = True)
 spec0_i = mix_spin(spec0_i)
 if para.isroot(): spec0_i.savetxt(spec0_i_fname, offset = global_offset)
 
