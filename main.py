@@ -71,11 +71,13 @@ if userin.spec_analysis:
 
 
 ## setup ixyz list *** need more works
+
 ixyz_list = [-1, 0, 1, 2] # userin.ixyz_list
 # if not completed
 ixyz_list_ = ixyz_list[:]
 if -1 in ixyz_list:
     ixyz_list_ += [ixyz for ixyz in [0, 1, 2] if ixyz not in ixyz_list ]
+if userin.xps_only: ixyz_list_ = []
 
 # output format
 fn_fmt      = 'f^(n)/statistics\n!{:>8} {:>10}  {:>12}  {:>12}'
@@ -204,6 +206,8 @@ for isk in range(pool.nsk):
         para.print('  XPS spectra finished. ', flush = True)
         para.print()
 
+        if userin.xps_only: continue
+
         ## XAS spectra ( (N + 1) x (N + 1) )
         para.sep_line(second_sepl)
         para.print('  Calculating many-body XAS spectra ... ')
@@ -263,7 +267,6 @@ for isk in range(pool.nsk):
         spec_xas_all.append(spec_xas_isk)
 
         para.print('  Many-body XAS spectra finished. \n', flush = True)
-        # end of ixyz
     # end if spec0_only
 # end of isk
 
@@ -310,21 +313,22 @@ if userin.want_bse:
 # convolute spin-up and -down spectra if nspin == 2
 if nspin == 2:
 
-    para.print('Calculating total many-body spectra for nspin = 2.', flush = True)
+    if not userin.xps_only:
+        para.print('Calculating total many-body spectra for nspin = 2.', flush = True)
 
-    # convolute xas spectra: do this before xps
-    for isk, sk in enumerate(pool.sk_list):
-        ispin, ik = sk
-        if (1 - ispin, ik) not in pool.sk_list:
-            pool.log('The twin tuple ({0}, {1}) for ({2},{3}) is not on this pool with {5}'
-                    .format(ispin, ik, 1 - ispin, ik, str(pool.sk_list)))
-            pool.log('Unsupported distribution of sk-tuples', flush = True)
-            para.exit()
-        ind = pool.sk_list.index((1 - ispin, ik))
-        sticks_xps_twin = []
-        for order in range(userin.maxfn): sticks_xps_twin += sticks_xps_all[ind][order]
-        spec_xas_all[isk] *= sticks_xps_twin
-    para.print(' many-body XAS convoluted.', flush = True)
+        # convolute xas spectra: do this before xps
+        for isk, sk in enumerate(pool.sk_list):
+            ispin, ik = sk
+            if (1 - ispin, ik) not in pool.sk_list:
+                pool.log('The twin tuple ({0}, {1}) for ({2},{3}) is not on this pool with {5}'
+                        .format(ispin, ik, 1 - ispin, ik, str(pool.sk_list)))
+                pool.log('Unsupported distribution of sk-tuples', flush = True)
+                para.exit()
+            ind = pool.sk_list.index((1 - ispin, ik))
+            sticks_xps_twin = []
+            for order in range(userin.maxfn): sticks_xps_twin += sticks_xps_all[ind][order]
+            spec_xas_all[isk] *= sticks_xps_twin
+        para.print(' many-body XAS convoluted.', flush = True)
 
     # convolute xps spectra
     isk_done = []
@@ -355,28 +359,29 @@ if nspin == 2:
 # intrapool summation
 
 spec_xps = init_spec()[0]
-spec_xas = init_spec(nspin)
+if not userin.xps_only: spec_xas = init_spec(nspin)
 
 for isk, sk in enumerate(pool.sk_list):
     ispin, ik = sk
     weight = iscf.kpt.weight[ik]    
     if ispin == 0: spec_xps += spec_xps_all[isk] # two spin channels are the same
-    spec_xas[ispin] += spec_xas_all[isk]
+    if not userin.xps_only: spec_xas[ispin] += spec_xas_all[isk]
 spec_xps *= weight
 
 # mpi reduce
 para.print('Collecting spectra at all k-points...', flush = True)
 spec_xps.mp_sum(pool.rootcomm)
-for ispin in range(nspin):
-    spec_xas[ispin].mp_sum(pool.rootcomm)
-spec_xas = mix_spin(spec_xas)
+if not userin.xps_only:
+    for ispin in range(nspin):
+        spec_xas[ispin].mp_sum(pool.rootcomm)
+    spec_xas = mix_spin(spec_xas)
 para.print('Spectra at all k-points collected.\n', flush = True)
 
 # This requires the world root is also one of the pool roots: can be made more robust
 if para.isroot():
     postfix = '.dat'
     spec_xps.savetxt(spec_xps_fname + postfix)
-    spec_xas.savetxt(spec_xas_fname + postfix, offset = global_offset)
+    if not userin.xps_only: spec_xas.savetxt(spec_xas_fname + postfix, offset = global_offset)
 
 ## Convolute the initial-state spectrum with XPS: test orthogonality
 if userin.want_spec_o:
@@ -386,7 +391,8 @@ if userin.want_spec_o:
 
 if userin.spec_analysis and para.isroot():
     for order in range(userin.maxfn):
-        mix_spin(spec_xas_g[order]).savetxt(spec_xas_fname + '_maxfn_{}.dat'.format(order + 1), offset = global_offset)
+        if not userin.xps_only: 
+            mix_spin(spec_xas_g[order]).savetxt(spec_xas_fname + '_maxfn_{}.dat'.format(order + 1), offset = global_offset)
         spec_xps_g[order][0].savetxt(spec_xps_fname + '_maxfn_{}.dat'.format(order))
 
 # Bye ! ~

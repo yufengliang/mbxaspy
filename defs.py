@@ -49,6 +49,7 @@ class user_input_class(object):
         self.zeta_analysis      = False         # perform full analysis on the zeta matrix
         self.do_paw_correction  = True          # perform PAW corrections
         self.spec0_only         = False         # Calculate one-body / non-interacing spectra only
+        self.xps_only           = False         # Calculate one-body and XPS spectra only
         self.want_bse           = False         # Want to calculate BSE spectra
         self.want_spec_o        = False         # Convolute the spec0_i with spec_xps
         self.spec_analysis      = False         # perform analysis on spectra
