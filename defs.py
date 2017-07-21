@@ -353,7 +353,8 @@ class scf_class(object):
         para = self.para
         proj = self.proj
         # find the pos file
-        pseudo_fname = proj.atomic_species[proj.xs][1]
+        xs = proj.get_s(proj.x) # Note that you can't use proj.xs for GS because there isn't any excited-atom species.
+        pseudo_fname = proj.atomic_species[xs][1]
         pos_fname = self.tmp_iptblk['TMP_PSEUDO_DIR'] + '/' + os.path.splitext(pseudo_fname)[0] + '.pos'
         try:
             fh = open(pos_fname, 'r')
@@ -368,7 +369,6 @@ class scf_class(object):
             para.error('Problem reading the pos file.')
             
         # consistency check between the projectors in the pos file and the proj type
-        xs = proj.get_s(proj.x)
         if lwfc1 != proj.l[xs]:
             para.error('lwfc1 in the pos file {} not consistent with the pseudopotential {}. '.format(lwfc1, proj.l[xs]))
         

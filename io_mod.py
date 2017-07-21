@@ -313,7 +313,7 @@ def import_from_pos(fh):
             c = 0
             while l and c < n:
                 w = l.split()
-                if len(w) == 5:
+                if len(w) in {5, 10}: # 5-col is for old pos format and 10-col is the enriched format by yfliang
                     # (l,m) in lwfc1, m in lwfc2 (only one), i = (x=1,y=2,z=3)
                     # m ranges from -l to l
                     # elem = < h_c | r_i | beta_lm >  (Core-level wavefunctions always proceed. )
