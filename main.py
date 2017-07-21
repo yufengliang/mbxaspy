@@ -28,9 +28,10 @@ para.print(' Checking final-state scf from: \n ' + userin.path_f + '\n')
 fscf.input(is_initial = False, isk = -1, nelec = iscf.nelec)
 
 if userin.scf_type == 'shirley_xas':
-    # Important: Need to tell iscf the index of core
+    # Important: Need to tell iscf the index of the core in the xmat file with multiple atoms
     iscf.proj.icore = fscf.proj.icore
-
+    # or tell iscf which atom is excited (for use_pos = True)
+    iscf.proj.x     = fscf.proj.x
     # Input < B_i | \tilde{B}_j >
     fscf.obf.input_overlap(userin.path_f, iscf.nbnd, fscf.nbnd)
 

@@ -48,6 +48,7 @@ class user_input_class(object):
         self.xi_analysis        = False         # perform full analysis on the xi matrix
         self.zeta_analysis      = False         # perform full analysis on the zeta matrix
         self.do_paw_correction  = True          # perform PAW corrections
+        self.use_pos            = True          # Use the .pos files instead of the .xmat files (recommended)
         self.spec0_only         = False         # Calculate one-body / non-interacing spectra only
         self.xps_only           = False         # Calculate one-body and XPS spectra only
         self.want_bse           = False         # Want to calculate BSE spectra
@@ -264,6 +265,10 @@ class proj_class(object):
             self.icore = sum(self.ind_excitation[0 : self.x])
             self.para.print('  This is the {0}th atom among {1} core-excited atoms.\n'.format(self.icore + 1, self.ncore))
 
+    def get_s(self, ith):
+        """ Get the species of ith atom in the ATOMIC_POSITION list"""
+        return  self.ind[ self.atomic_pos[ith][0] ] if ith < self.natom else None
+
     def input_sij(self):
         """ 
         input the atomic overlap term sij
@@ -334,7 +339,50 @@ class scf_class(object):
         # In shirley_xas, posn is nbnd x ncp x nxyz 3d array; xmat is the same here
         # xmat is calculated as < nk | O | phi_h > (phi_h being the core levels)
         self.xmat = self.sp.array(self.xmat).reshape(nxyz, self.ncp, self.nbnd).T
+
+    def calc_xmat(self):
+        """ 
+        Calculate xmat from < beta | nk > and the *.pos file
+
+        < nk | r_i | h_c > = sum_{l} < nk | beta_l > < beta_l | r_i | h_c > 
         
+        l loops over the beta functions of the excited atom.
+        < nk | beta_l > is from proj.bet_nk.
+        < beta_l | r_i | h > is extracted from the pos file. 
+        """
+        para = self.para
+        proj = self.proj
+        # find the pos file
+        pseudo_fname = proj.atomic_species[proj.xs][1]
+        pos_fname = self.tmp_iptblk['TMP_PSEUDO_DIR'] + '/' + os.path.splitext(pseudo_fname)[0] + '.pos'
+        try:
+            fh = open(pos_fname, 'r')
+        except IOError:
+            para.error('cannot open the pos file {}'.format(pos_fname))
+            
+        para.print('Reading the pos file {}'.format(pos_fname))
+        lwfc1, lwfc2, elem = import_from_pos(fh) # lwfc1: an l array, lwfc2: an l number, elem: a list
+        fh.close()
+
+        if elem is None:
+            para.error('Problem reading the pos file.')
+            
+        # consistency check between the projectors in the pos file and the proj type
+        xs = proj.get_s(proj.x)
+        if lwfc1 != proj.l[xs]:
+            para.error('lwfc1 in the pos file {} not consistent with the pseudopotential {}. '.format(lwfc1, proj.l[xs]))
+        
+        # find the projector offset for the excited atom
+        # proj.x for iscf has been assigned by proj.x from fscf in main.py in the pre-input step (isk < 0)
+        proj_offset = 0
+        for I in range(proj.x):
+            proj_offset +=  proj.nprojs[proj.get_s(I)]
+
+        # calculate < nk | r_i | h_c >
+        self.xmat = self.sp.zeros((self.nbnd, 2 * lwfc2 + 1, nxyz))
+        for pos in elem:
+            lm_valence, m_core, ixyz, pos_val = pos[0] - 1, pos[1] - 1, pos[2] - 1, pos[3]
+            self.xmat[: self.nbnd, m_core, ixyz] = proj.beta_nk[proj_offset + lm_valence, :].T.conjugate() * pos_val
 
     def input_shirley(self, is_initial = True, isk = 0, nelec = -1):
         """ 
@@ -407,7 +455,8 @@ class scf_class(object):
             try:
                 fh = open(fname, 'r' + binary)
             except:
-                para.error(" Can't open " + fname + '. Check if shirley_xas finishes properly. Halt. ')
+                if ftype != 'xmat' or not userin.use_pos:
+                    para.error(" Can't open " + fname + '. Check if shirley_xas finishes properly. Halt. ')
 
             # information file
             if f == 'info':
@@ -558,14 +607,24 @@ class scf_class(object):
             # xmat file: matrix elements
             if f == 'xmat':
                 para.print('  Reading single-body matrix elements ... ')
-                # This is important: for the ground-state system, xmat for all excited atoms
-                # are stored in the same xmat file. You need to set up an offset to locate the 
-                # right block for this excited atom being processed
-                if is_initial: 
-                    size = self.nk * self.nbnd * self.ncp * nxyz
-                    offset = size * self.proj.icore
-                else: offset = 0
-                self.input_xmat(fh, offset, para.pool.sk_offset[isk], is_initial)
+
+                if userin.use_pos:
+                    # calculate xmat from < beta | nk > and the *.pos file in the pseudo library
+                    self.calc_xmat()
+                else:
+                    # Notes:
+                    # There is a problem with the xmat file produced by shirley_xas.overlap
+                    # It's also easy to make mistakes to use the xmat files !!!
+
+                    # This is important: for the ground-state system, xmat for all excited atoms
+                    # are stored in the same xmat file. You need to set up an offset to locate the 
+                    # right block for this excited atom being processed
+                    if is_initial: 
+                        size = self.nk * self.nbnd * self.ncp * nxyz
+                        offset = size * self.proj.icore
+                    else: offset = 0
+                    self.input_xmat(fh, offset, para.pool.sk_offset[isk], is_initial)
+
                 para.print(flush = True)
                 
             fh.close()
