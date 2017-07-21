@@ -350,8 +350,9 @@ class scf_class(object):
         < nk | beta_l > is from proj.bet_nk.
         < beta_l | r_i | h > is extracted from the pos file. 
         """
-        para = self.para
-        proj = self.proj
+        para    = self.para
+        proj    = self.proj
+        sp      = self.sp
         # find the pos file
         xs = proj.get_s(proj.x) # Note that you can't use proj.xs for GS because there isn't any excited-atom species.
         pseudo_fname = proj.atomic_species[xs][1]
@@ -379,10 +380,13 @@ class scf_class(object):
             proj_offset +=  proj.nprojs[proj.get_s(I)]
 
         # calculate < nk | r_i | h_c >
-        self.xmat = self.sp.zeros((self.nbnd, 2 * lwfc2 + 1, nxyz))
+        self.xmat = sp.zeros((self.nbnd, 2 * lwfc2 + 1, nxyz), dtype = sp.complex128)
         for pos in elem:
             lm_valence, m_core, ixyz, pos_val = pos[0] - 1, pos[1] - 1, pos[2] - 1, pos[3]
-            self.xmat[: self.nbnd, m_core, ixyz] = proj.beta_nk[proj_offset + lm_valence, :].T.conjugate() * pos_val
+            # Note that beta_nk has been converted into a matrix type. You can't broadcast it into an array directly
+            for b in range(self.nbnd):
+                # In future I should rewrite this using matrix multiplication
+                self.xmat[b, m_core, ixyz] += proj.beta_nk[proj_offset + lm_valence, b].conjugate() * pos_val.conjugate()
 
     def input_shirley(self, is_initial = True, isk = 0, nelec = -1):
         """ 
