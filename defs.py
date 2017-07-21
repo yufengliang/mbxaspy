@@ -360,7 +360,7 @@ class scf_class(object):
         except IOError:
             para.error('cannot open the pos file {}'.format(pos_fname))
             
-        para.print('Reading the pos file {}'.format(pos_fname))
+        para.print('  Reading the pos file {}'.format(pos_fname))
         lwfc1, lwfc2, elem = import_from_pos(fh) # lwfc1: an l array, lwfc2: an l number, elem: a list
         fh.close()
 
