@@ -39,9 +39,8 @@ while i < nargv:
         if i + 1 < nargv:
             i += 1
             try:
-                wi = float(arg[i])
+                wi = float(sys.argv[i])
             except ValueError:
-                i += 1
                 continue
         if wi < 1:
             print('non-positive weight {} reset to 1.0.'.format(wi))
@@ -54,7 +53,8 @@ while i < nargv:
     i += 1
     spec = sp.loadtxt(f)
     if spec_all is None:
-        spec_all = spec * wi
+        spec_all = spec
+        spec_all[0, 1 :] *= wi
         continue
 
     # energy axis check
@@ -88,6 +88,7 @@ while i < nargv:
     spec_all = spec_new
 
 # take average
+print('Total weight = {}'.format(w))
 spec_all[:, 1 : ] /= w
 
 sp.savetxt('spec_all.dat', spec_all)
