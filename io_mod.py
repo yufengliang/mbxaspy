@@ -317,7 +317,7 @@ def import_from_pos(fh):
                     # (l,m) in lwfc1, m in lwfc2 (only one), i = (x=1,y=2,z=3)
                     # m ranges from -l to l
                     # elem = < h_c | r_i | beta_lm >  (Core-level wavefunctions always proceed. )
-                    elem.append([int(_) for _ in w[ : 2]] + [float(w[3]) + 1j * float(w[4])]) 
+                    elem.append([int(_) for _ in w[ : 3]] + [float(w[3]) + 1j * float(w[4])]) 
                 l = fh.readline()
                 c += 1
     return lwfc1, lwfc2, elem
