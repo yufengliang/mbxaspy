@@ -26,6 +26,8 @@ else:
 # define pools
 para.pool = pool = pool_class(para)
 __all__ += ['para', 'pool']
+if para.size > 1:
+    para.print(' Distribute jobs to {} MPI tasks. '.format(para.size))
 para.print()
 
 # python version
