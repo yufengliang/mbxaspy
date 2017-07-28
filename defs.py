@@ -459,7 +459,7 @@ class scf_class(object):
             try:
                 fh = open(fname, 'r' + binary)
             except:
-                if ftype != 'xmat' or not userin.use_pos:
+                if f != 'xmat' or not userin.use_pos:
                     para.error(" Can't open " + fname + '. Check if shirley_xas finishes properly. Halt. ')
 
             # information file
