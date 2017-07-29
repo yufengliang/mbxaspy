@@ -41,7 +41,7 @@ while i < nargv:
             try:
                 wi = float(sys.argv[i])
             except ValueError:
-                continue
+                i -= 1
         if wi < 1:
             print('non-positive weight {} reset to 1.0.'.format(wi))
             wi = 1.0
