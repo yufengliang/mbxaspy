@@ -483,6 +483,9 @@ class scf_class(object):
                 # adjust the no. of bands actually used
                 self.nbnd_use = nbnd_use if 0 < nbnd_use < self.nbnd else self.nbnd
 
+                # overwrite no. of electrons
+                if nelec >= 0: self.nelec = nelec
+
                 # print out basis information
                 info_str = ('  number of bands (nbnd)                    = {0}\n'\
                          +  '  number of bands used (nbnd_use)           = {1}\n'\
@@ -492,9 +495,6 @@ class scf_class(object):
                          +  '  number of optimal-basis function (nbasis) = {5}\n'\
                            ).format(self.nbnd, self.nbnd_use, self.nspin, self.nk, self.nelec, self.nbasis)
                 para.print(info_str, flush = True)
-
-                # overwrite no. of electrons
-                if nelec > 0: self.nelec = nelec
 
                 # check no. of electrons
                 if self.nelec > self.nbnd * 2:
