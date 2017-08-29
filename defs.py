@@ -22,7 +22,7 @@ class user_input_class(object):
         self.mol_name_i     = 'mol_name'
         self.mol_name_f     = 'xatom'
         self.xas_arg        = 5
-        self.nelec          = 0
+        self.nelec          = -1
         self.scf_type       = 'shirley_xas'
         self.nproc_per_pool = 1
 
