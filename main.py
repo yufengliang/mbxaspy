@@ -20,7 +20,7 @@ userin.read()
 # Check the initial-state scf calculations
 para.sep_line()
 para.print(' Checking initial-state scf from: \n ' + userin.path_i + '\n')
-iscf.input(isk = -1)
+iscf.input(isk = -1, nelec = userin.nelec)
 
 # Check the final-state scf calculations
 para.sep_line()
