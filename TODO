@@ -127,6 +127,18 @@
 
 # Calculate Afc and x-ray spectra [X]
 
+## Developments
+
+# Multiple core levels with spin-orbit coupling
+
+- [ ] Use Clebsch-Gordan coefficients to construct the core level wavefunctions
+
+# RIXS
+
+- [ ] Check the source of large-memory usage in the main code
+
+- [ ] Check the compatibility with multiple core levels
+
 # Problems
 
 - [.] If you use more procs, the code will crash when reading eigvec (out of memory ?!).
