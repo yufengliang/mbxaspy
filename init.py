@@ -4,12 +4,13 @@ from __future__ import print_function
 
 import sys
 import os
+import copy
+
+__all__ = ['sys', 'os', 'copy']
 
 from utils import *
 from defs import *
 from para_defs import *
-
-__all__ = ['sys', 'os']
 
 # initialize mpi environment
 para = para_class()
@@ -25,6 +26,8 @@ else:
 # define pools
 para.pool = pool = pool_class(para)
 __all__ += ['para', 'pool']
+if para.size > 1:
+    para.print(' Distribute jobs to {} MPI tasks. '.format(para.size))
 para.print()
 
 # python version
@@ -54,15 +57,15 @@ para.print()
 
 
 # user input
-user_input = user_input_class()
-__all__ += ['user_input']
+userin = user_input_class()
+__all__ += ['userin']
 
 # Pass attributes
 for obj in ['scf_class', 'optimal_basis_set_class', 'proj_class', 'user_input_class']:
     for attr in ['sp', 'para']:
         setattr(eval(obj), attr, eval(attr))
 
-scf_class.userin = user_input
+scf_class.userin = userin
 
 # initial- and final-state scf
 iscf = scf_class()

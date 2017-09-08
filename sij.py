@@ -75,7 +75,7 @@ def draw_wave(l, phi_ps, phi_ae):
 
 	np = len(l)
 	for ip in range(np):
-		plt.plot(phi_ps[:, 0], phi_ps[:, ip + 1], clist[ip] + '--')
+		plt.plot(phi_ps[:, 0], phi_ps[:, ip + 1], clist[ip] + '--', linewidth = 3)
 		plt.plot(phi_ae[:, 0], phi_ae[:, ip + 1], clist[ip],  label = 'l = ' + str(l[ip]))
 
 	plt.legend(loc = 'upper center')

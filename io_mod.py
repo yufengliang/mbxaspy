@@ -202,7 +202,7 @@ def atomic_species_to_list(asp_str):
     res = []
     for l in asp_str.split('\n'):
         words = l.split()
-        if len(words) == 3 and len(words[0]) < 3 and words[2].split('.')[-1] == 'UPF': 
+        if len(words) == 3 and len(words[0]) < elem_maxl and words[2].split('.')[-1] == 'UPF': 
             # *** There should be more robust sanity checks: check elements
             res.append([words[0], words[2]])
     return res
@@ -219,7 +219,7 @@ def atomic_positions_to_list(apos_str):
     res = []
     for l in apos_str.split('\n'):
         words = l.split()
-        if len(words) >= 4 and len(words[0]) < 3:
+        if len(words) >= 4 and len(words[0]) < elem_maxl:
             # *** There should be more robust sanity checks: check elements
             res.append(words)
     return res
@@ -265,6 +265,63 @@ def get_index(s):
     should return 4
     """
     return int(s[s.find("[")+1:s.find("]")])
+
+def import_from_pos(fh):
+    """
+    import < beta_l | r_i | h > from the given file handle
+
+    The pos file used should have the following format (take I 4d9 as an example):
+
+    position
+    6   1             ! nwfc1, nwfc2
+    0 0 1 1 2 2         ! lwfc1(1:nwfc1)
+    2                   ! lwfc2(1:nwfc2)
+    22         ! nonzero elements (i,j,ixyz,cR,cI)
+    3  1  3    0.2194993793964386E+00   0.0000000000000000E+00
+    4  1  1    0.1097496896982193E+00   0.0000000000000000E+00
+    5  1  2    0.1097496896982193E+00   0.0000000000000000E+00
+    6  1  3    0.2587353587150574E+00   0.0000000000000000E+00
+    7  1  1    0.1293676793575287E+00   0.0000000000000000E+00
+    8  1  2    0.1293676793575287E+00   0.0000000000000000E+00
+    3  2  1   -0.1900920420885086E+00   0.0000000000000000E+00
+    ...
+    3  3  2   -0.1900920420885086E+00   0.0000000000000000E+00
+    ...
+    4  4  1   -0.1900920420885086E+00   0.0000000000000000E+00
+    ...
+    4  5  2   -0.1900920420885086E+00   0.0000000000000000E+00
+    ...
+
+    """
+    elem = None
+    while True:
+        l = fh.readline()
+        if not l: break
+        if 'nwfc1' in l and 'nwfc2' in l:
+            w = l.split()
+            nwfc1, nwfc2 = int(w[0]), int(w[1])
+            # nwfc2 is assumed to be one - only one l value
+        if 'lwfc1' in l:
+            w = l.split('!')[0].split()
+            lwfc1 = [int(_) for _ in w]
+        if 'lwfc2' in l:
+            lwfc2 = int(l.split()[0])
+        if 'nonzero elements' in l:
+            n = int(l.split()[0])
+            elem = []
+            l = fh.readline()
+            c = 0
+            while l and c < n:
+                w = l.split()
+                if len(w) in {5, 10}: # 5-col is for old pos format and 10-col is the enriched format by yfliang
+                    # (l,m) in lwfc1, m in lwfc2 (only one), i = (x=1,y=2,z=3)
+                    # m ranges from -l to l
+                    # elem = < h_c | r_i | beta_lm >  (Core-level wavefunctions always proceed. )
+                    elem.append([int(_) for _ in w[ : 3]] + [float(w[3]) + 1j * float(w[4])]) 
+                l = fh.readline()
+                c += 1
+    return lwfc1, lwfc2, elem
+
 
 # export function only
 __all__ = [s for s in dir() if not s.startswith('_') and inspect.isfunction(getattr(sys.modules[__name__],s))]

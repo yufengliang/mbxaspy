@@ -20,7 +20,7 @@
 
 # Initialization 
 
-- [...] init.py
+- [X] init.py
 
 	 Detect if it is python 2.x or 3.x. DONE
 
@@ -34,7 +34,7 @@
 	 Define pools and split up k-points by pools.
 	 Then split up band group over within each pool. 
 
-- [...] defs.py
+- [X] defs.py
 
 	 para_class DONE
 	 user_input_class ...
@@ -95,11 +95,11 @@
 
 - [X] Message printer: using para.print
 
-- [ ] result output
+- [X] result output
 
 	 You may use stdout
 
-- [ ] Input variables for an actual mbxas run
+- [X] Input variables for an actual mbxas run
 
 	 Required:
 
@@ -123,6 +123,10 @@
 
 # Calculate the \xi matrix
 
-- [] An utility to calculate \xi
+- [X] An utility to calculate \xi
 
-# Calculate Afc and x-ray spectra 
+# Calculate Afc and x-ray spectra [X]
+
+# Problems
+
+- [.] If you use more procs, the code will crash when reading eigvec (out of memory ?!).

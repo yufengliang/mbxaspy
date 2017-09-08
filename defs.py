@@ -22,7 +22,7 @@ class user_input_class(object):
         self.mol_name_i     = 'mol_name'
         self.mol_name_f     = 'xatom'
         self.xas_arg        = 5
-        self.nelec          = 0
+        self.nelec          = -1
         self.scf_type       = 'shirley_xas'
         self.nproc_per_pool = 1
 
@@ -43,12 +43,17 @@ class user_input_class(object):
         self.I_thr          = 1e-3      # intensity cutoff
         
         # control flags
-        self.gamma_only     = False         # Using Gamma-point only
-        self.final_1p       = False         # Calculate one-body final-state spectra
-        self.xi_analysis    = False         # perform full analysis on the xi matrix
-        self.zeta_analysis  = False         # perform full analysis on the zeta matrix
-        self.do_paw_correction = True       # perform PAW corrections
-        self.spec0_only     = False         # Calculate one-body / non-interacing spectra only
+        self.gamma_only         = False         # Using Gamma-point only
+        self.final_1p           = False         # Calculate one-body final-state spectra
+        self.xi_analysis        = False         # perform full analysis on the xi matrix
+        self.zeta_analysis      = False         # perform full analysis on the zeta matrix
+        self.do_paw_correction  = True          # perform PAW corrections
+        self.use_pos            = True          # Use the .pos files instead of the .xmat files (recommended)
+        self.spec0_only         = False         # Calculate one-body / non-interacing spectra only
+        self.xps_only           = False         # Calculate one-body and XPS spectra only
+        self.want_bse           = False         # Want to calculate BSE spectra
+        self.want_spec_o        = False         # Convolute the spec0_i with spec_xps
+        self.spec_analysis      = False         # perform analysis on spectra
 
     def read(self):
         """ input from stdin or userin"""
@@ -167,7 +172,7 @@ class optimal_basis_set_class(object):
         try:
             self.overlap = self.sp.matrix(self.overlap).reshape(nbnd2, nbnd1).transpose()
         except ValueError as vle:
-            self.para.error(vle + '\n Insufficient data in {0} for nbnd1 = {1} and nbnd2 = {2}'.format(fname, nbnd1, nbnd2))
+            self.para.error(str(vle) + '\n Insufficient data in {}({})for nbnd1 = {} and nbnd2 = {}'.format(fname, len(self.overlap), nbnd1, nbnd2))
         # self.para.print(self.overlap[0:2, 0:5]) # debug
         fh.close()
         self.para.print('  Overlap matrix < B_i | ~B_j > imported from {0}'.format(fname))
@@ -260,6 +265,10 @@ class proj_class(object):
             self.icore = sum(self.ind_excitation[0 : self.x])
             self.para.print('  This is the {0}th atom among {1} core-excited atoms.\n'.format(self.icore + 1, self.ncore))
 
+    def get_s(self, ith):
+        """ Get the species of ith atom in the ATOMIC_POSITION list"""
+        return  self.ind[ self.atomic_pos[ith][0] ] if ith < self.natom else None
+
     def input_sij(self):
         """ 
         input the atomic overlap term sij
@@ -330,7 +339,54 @@ class scf_class(object):
         # In shirley_xas, posn is nbnd x ncp x nxyz 3d array; xmat is the same here
         # xmat is calculated as < nk | O | phi_h > (phi_h being the core levels)
         self.xmat = self.sp.array(self.xmat).reshape(nxyz, self.ncp, self.nbnd).T
+
+    def calc_xmat(self):
+        """ 
+        Calculate xmat from < beta | nk > and the *.pos file
+
+        < nk | r_i | h_c > = sum_{l} < nk | beta_l > < beta_l | r_i | h_c > 
         
+        l loops over the beta functions of the excited atom.
+        < nk | beta_l > is from proj.bet_nk.
+        < beta_l | r_i | h > is extracted from the pos file. 
+        """
+        para    = self.para
+        proj    = self.proj
+        sp      = self.sp
+        # find the pos file
+        xs = proj.get_s(proj.x) # Note that you can't use proj.xs for GS because there isn't any excited-atom species.
+        pseudo_fname = proj.atomic_species[xs][1]
+        pos_fname = self.tmp_iptblk['TMP_PSEUDO_DIR'] + '/' + os.path.splitext(pseudo_fname)[0] + '.pos'
+        try:
+            fh = open(pos_fname, 'r')
+        except IOError:
+            para.error('cannot open the pos file {}'.format(pos_fname))
+            
+        para.print('  Reading the pos file {}'.format(pos_fname))
+        lwfc1, lwfc2, elem = import_from_pos(fh) # lwfc1: an l array, lwfc2: an l number, elem: a list
+        fh.close()
+
+        if elem is None:
+            para.error('Problem reading the pos file.')
+            
+        # consistency check between the projectors in the pos file and the proj type
+        if lwfc1 != proj.l[xs]:
+            para.error('lwfc1 in the pos file {} not consistent with the pseudopotential {}. '.format(lwfc1, proj.l[xs]))
+        
+        # find the projector offset for the excited atom
+        # proj.x for iscf has been assigned by proj.x from fscf in main.py in the pre-input step (isk < 0)
+        proj_offset = 0
+        for I in range(proj.x):
+            proj_offset +=  proj.nprojs[proj.get_s(I)]
+
+        # calculate < nk | r_i | h_c >
+        self.xmat = sp.zeros((self.nbnd, 2 * lwfc2 + 1, nxyz), dtype = sp.complex128)
+        for pos in elem:
+            lm_valence, m_core, ixyz, pos_val = pos[0] - 1, pos[1] - 1, pos[2] - 1, pos[3]
+            # Note that beta_nk has been converted into a matrix type. You can't broadcast it into an array directly
+            for b in range(self.nbnd):
+                # In future I should rewrite this using matrix multiplication
+                self.xmat[b, m_core, ixyz] += proj.beta_nk[proj_offset + lm_valence, b].conjugate() * pos_val.conjugate()
 
     def input_shirley(self, is_initial = True, isk = 0, nelec = -1):
         """ 
@@ -403,7 +459,8 @@ class scf_class(object):
             try:
                 fh = open(fname, 'r' + binary)
             except:
-                para.error(" Can't open " + fname + '. Check if shirley_xas finishes properly. Halt. ')
+                if f != 'xmat' or not userin.use_pos:
+                    para.error(" Can't open " + fname + '. Check if shirley_xas finishes properly. Halt. ')
 
             # information file
             if f == 'info':
@@ -426,6 +483,9 @@ class scf_class(object):
                 # adjust the no. of bands actually used
                 self.nbnd_use = nbnd_use if 0 < nbnd_use < self.nbnd else self.nbnd
 
+                # overwrite no. of electrons
+                if nelec >= 0: self.nelec = nelec
+
                 # print out basis information
                 info_str = ('  number of bands (nbnd)                    = {0}\n'\
                          +  '  number of bands used (nbnd_use)           = {1}\n'\
@@ -435,9 +495,6 @@ class scf_class(object):
                          +  '  number of optimal-basis function (nbasis) = {5}\n'\
                            ).format(self.nbnd, self.nbnd_use, self.nspin, self.nk, self.nelec, self.nbasis)
                 para.print(info_str, flush = True)
-
-                # overwrite no. of electrons
-                if nelec > 0: self.nelec = nelec
 
                 # check no. of electrons
                 if self.nelec > self.nbnd * 2:
@@ -463,10 +520,17 @@ class scf_class(object):
                 if is_initial and not para.pool.up:
                     # set up pools
                     nsk = self.nk_use * self.nspin
-                    if nsk < para.size / userin.nproc_per_pool:
-                        para.print(' Too few (spin, k) tuples ({0}) to calculate for {1} pools.'.format(nsk, int(para.size / userin.nproc_per_pool)))
-                        para.print(' Increase nproc_per_pool to {0}\n'.format(int(para.size / nsk)))
-                        userin.nproc_per_pool = int(para.size / nsk)
+                    # if (0, k) and (1, k) can be treated on different pools
+                    # if nsk < para.size / userin.nproc_per_pool:
+                    #    para.print(' Too few (spin, k) tuples ({0}) to calculate for {1} pools.'.format(nsk, int(para.size / userin.nproc_per_pool)))
+                    #    userin.nproc_per_pool = int(para.size / nsk)
+                    #    para.print(' Increase nproc_per_pool to {0}\n'.format(int(userin.nproc_per_pool))
+
+                    # if (0, k) and (1, k) can only be treated on the same pool
+                    if self.nk_use < para.size / userin.nproc_per_pool:
+                        para.print(' Too few k-points ({0}) to calculate for {1} pools.'.format(self.nk_use, int(para.size / userin.nproc_per_pool)))
+                        userin.nproc_per_pool = int(para.size / self.nk_use) # for the contiguous mode
+                        para.print(' Increase nproc_per_pool to {0}\n'.format(int(userin.nproc_per_pool)))
 
                     para.pool.set_pool(userin.nproc_per_pool)
                     para.pool.info()
@@ -527,6 +591,7 @@ class scf_class(object):
             if f == 'eigvec':
                 para.print('  Obf Wavefunctions : ')
                 self.obf.input_eigvec(fh, para.pool.sk_offset[isk])
+                self.obf.eigvec = self.obf.eigvec[:, : self.nbnd_use] # resize to save memory
                 self.eigvec = self.obf.eigvec
                 para.print(flush = True)
 
@@ -546,14 +611,24 @@ class scf_class(object):
             # xmat file: matrix elements
             if f == 'xmat':
                 para.print('  Reading single-body matrix elements ... ')
-                # This is important: for the ground-state system, xmat for all excited atoms
-                # are stored in the same xmat file. You need to set up an offset to locate the 
-                # right block for this excited atom being processed
-                if is_initial: 
-                    size = self.nk * self.nbnd * self.ncp * nxyz
-                    offset = size * self.proj.icore
-                else: offset = 0
-                self.input_xmat(fh, offset, para.pool.sk_offset[isk], is_initial)
+
+                if userin.use_pos:
+                    # calculate xmat from < beta | nk > and the *.pos file in the pseudo library
+                    self.calc_xmat()
+                else:
+                    # Notes:
+                    # There is a problem with the xmat file produced by shirley_xas.overlap
+                    # It's also easy to make mistakes to use the xmat files !!!
+
+                    # This is important: for the ground-state system, xmat for all excited atoms
+                    # are stored in the same xmat file. You need to set up an offset to locate the 
+                    # right block for this excited atom being processed
+                    if is_initial: 
+                        size = self.nk * self.nbnd * self.ncp * nxyz
+                        offset = size * self.proj.icore
+                    else: offset = 0
+                    self.input_xmat(fh, offset, para.pool.sk_offset[isk], is_initial)
+
                 para.print(flush = True)
                 
             fh.close()

@@ -115,8 +115,8 @@ def convolute_spec(spec, spec_xps):
         spec_[ie, 1 :: ] = sp.matrix(spec_xps[:ie + 1, 1]) * sp.matrix(spec[ie :: -1, 1 ::])
     return spec_
 
-# ========================================================================================================================
-
+## ========================================================================================================================
+# rewritten with OOP
 
 def xmat_ixyz(xmat, ixyz, evec):
     """
@@ -131,6 +131,14 @@ def xmat_ixyz(xmat, ixyz, evec):
     if ixyz == -2:
         evec_ = sp.array(evec) / la.norm(evec)
         return sum([xmat[i] * evec_[i] for i in range(3)])
+
+## defs related to sticks
+
+# a stick array is:
+# [[energy, "info", os_1, os_2, os_3, ...], ...]
+# info contains information of the stick
+# os's are oscillator strengths
+# *** Maybe it will be become an object one day.
 
 def xmat_to_sticks(scf, ixyz_list, nocc = 0, offset = 0.0, evec = None):
     """
@@ -153,7 +161,6 @@ def xmat_to_sticks(scf, ixyz_list, nocc = 0, offset = 0.0, evec = None):
         sticks[0][2 : ] *= nocc % 1 # adjust intensity
     return sticks
 
-
 def Af_to_sticks(Af, offset = 0.0):
     """
     Given the final-state amplitudy Af, return a stick array:
@@ -163,6 +170,16 @@ def Af_to_sticks(Af, offset = 0.0):
     """
     return [ [ complex(Af[conf][0]).real + offset, conf, float(abs(Af[conf][1]) ** 2) ] for conf in Af]
 
+def os_sum(sticks):
+    """
+    sum up the oscillator strengths of all sticks
+    """
+    return sp.sum(sp.array([s[2 : ] for s in sticks]), axis = 0)
+
+def sticks_filter(sticks, os_min = 1e-1, maxn = 10):
+    pass
+
+##
 
 def same_axis(self, other):
     if len(self.ener_axis) != len(other.ener_axis) or any(abs(self.ener_axis - other.ener_axis) > zero_thr): return False
@@ -184,17 +201,6 @@ def add_I(I1, I2):
     # I[: I2.shape[0], : I2.shape[1]] += I2 # left aligned
     I[: I2.shape[0], col - I2.shape[1] :] += I2 # right aligned
     return I
-
-
-def os_sum(sticks):
-    """
-    sum up the oscillator strengths of all sticks
-    """
-    return sp.sum(sp.array([s[2 : ] for s in sticks]), axis = 0)
-
-
-def sticks_filter(sticks, sticks_thr = 1e-1, max_sticks = 10):
-    pass
 
 
 class spec_class(object):
