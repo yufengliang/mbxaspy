@@ -170,6 +170,14 @@ def Af_to_sticks(Af, offset = 0.0):
     """
     return [ [ complex(Af[conf][0]).real + offset, conf, float(abs(Af[conf][1]) ** 2) ] for conf in Af]
 
+def calc_occ_pdos(scf, ixyz_list, nocc = 0):
+    """
+    Calculate the integral of the occupied part of the spectra
+    Q = int_{E < E_f} d E sigma(E)
+    """
+    # *** multiple core levels unsupported now (ncp > 1)
+    return [sum([abs(xmat_ixyz(scf.xmat[ib, 0, :], ixyz, evec)) ** 2 for ib in range(int(nocc))]) for ixyz in ixyz_list]
+
 def os_sum(sticks):
     """
     sum up the oscillator strengths of all sticks

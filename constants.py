@@ -18,6 +18,9 @@ data_set = {'integer' : (4, 'i'), 'float' : (4, 'f') , 'double' : (8, 'd'), 'com
 # number of transition operators (dipole + quadrupole)
 nxyz = 9
 
+# labels of polarization directions
+pol_label = {-2 : 'user evec', -1 : 'angular average', 0 : 'x', 1 : 'y', 2 : 'z'}
+
 nbnd_max = 10000
 
 # threshold

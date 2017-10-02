@@ -76,7 +76,7 @@ if userin.spec_analysis:
 ixyz_list = [-1, 0, 1, 2] # userin.ixyz_list
 # if not completed
 ixyz_list_ = ixyz_list[:]
-if -1 in ixyz_list:
+if -1 in ixyz_list:  # need x, y, z to do "-1"
     ixyz_list_ += [ixyz for ixyz in [0, 1, 2] if ixyz not in ixyz_list ]
 if userin.xps_only: ixyz_list_ = []
 
@@ -84,6 +84,9 @@ if userin.xps_only: ixyz_list_ = []
 fn_fmt      = 'f^(n)/statistics\n!{:>8} {:>10}  {:>12}  {:>12}'
 fn_num_fmt  =                   '!{:>8} {:>10}  {:>12.7}  {:>12.7}' 
 
+# charge transfer
+qi = [0] * len(ixyz_list_)
+qf = [0] * len(ixyz_list_)
 
 ## loop over spin and kpoints
 for isk in range(pool.nsk):
@@ -120,18 +123,24 @@ for isk in range(pool.nsk):
     # sticks = xmat_to_sticks(iscf, [-2], nocc, evec = [1.0, 0.0, 0.0]) # debug
     # print(sticks[0]) debug
 
-    # initial-state
+    # initial-states: pec0_i.dat
     sticks = xmat_to_sticks(iscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
     spec0_i[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
     spec0_i_os_sum = os_sum(sticks)
     # sp.savetxt('spec0_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
 
-    # final-state
+    # final-state: spec0_f.dat
     if userin.final_1p:
         sticks = xmat_to_sticks(fscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
         spec0_f[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
     
     para.print('  One-body spectra finished.', flush = True)
+
+    ## Calculate charge transfer
+    q_isk = calc_occ_pdos(iscf, ixyz_list_, nocc)
+    qi = [qi[_] + q_isk[_] for _ in range(len(ixyz_list_))]
+    q_isk = calc_occ_pdos(fscf, ixyz_list_, nocc)
+    qf = [qf[_] + q_isk[_] for _ in range(len(ixyz_list_))]
 
     ## Compute many-body spectra
     if not userin.spec0_only:
@@ -299,6 +308,17 @@ if userin.final_1p:
 # spec0_sum.savetxt('spec0_sum.dat')
 
 para.print('one-body spectra output to files.\n', flush = True)
+
+# output charge-transfer
+qi, qf = sp.array(qi), sp.array(qf)
+if pool.rootcomm and pool.rootcomm != MPI.COMM_NULL:
+    qi = pool.rootcomm.all_reduce(qi, op = MPI.SUM)
+    qf = pool.rootcomm.all_reduce(qf, op = MPI.SUM)
+para.print(' Charge transfer analysis: ')
+para.print(' initial-state')
+para.print([pol_label[ixyz_list_[_]] + ': {:12.7}'.format(qi[_]) for _ in range(len(ixyz_list_))])
+para.print(' final-state')
+para.print([pol_label[ixyz_list_[_]] + ': {:12.7}'.format(qf[_]) for _ in range(len(ixyz_list_))])
 
 if userin.spec0_only:
     para.done() # debug
