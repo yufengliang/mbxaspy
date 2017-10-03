@@ -170,7 +170,7 @@ def Af_to_sticks(Af, offset = 0.0):
     """
     return [ [ complex(Af[conf][0]).real + offset, conf, float(abs(Af[conf][1]) ** 2) ] for conf in Af]
 
-def calc_occ_pdos(scf, ixyz_list, nocc = 0):
+def calc_occ_pdos(scf, ixyz_list, nocc = 0, evec = None):
     """
     Calculate the integral of the occupied part of the spectra
     Q = int_{E < E_f} d E sigma(E)

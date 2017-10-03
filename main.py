@@ -137,9 +137,9 @@ for isk in range(pool.nsk):
     para.print('  One-body spectra finished.', flush = True)
 
     ## Calculate charge transfer
-    q_isk = calc_occ_pdos(iscf, ixyz_list_, nocc)
+    q_isk = calc_occ_pdos(iscf, ixyz_list_, nocc, evec = userin.EVEC)
     qi = [qi[_] + q_isk[_] for _ in range(len(ixyz_list_))]
-    q_isk = calc_occ_pdos(fscf, ixyz_list_, nocc)
+    q_isk = calc_occ_pdos(fscf, ixyz_list_, nocc, evec = userin.EVEC)
     qf = [qf[_] + q_isk[_] for _ in range(len(ixyz_list_))]
 
     ## Compute many-body spectra
@@ -312,8 +312,8 @@ para.print('one-body spectra output to files.\n', flush = True)
 # output charge-transfer
 qi, qf = sp.array(qi), sp.array(qf)
 if pool.rootcomm and pool.rootcomm != MPI.COMM_NULL:
-    qi = pool.rootcomm.all_reduce(qi, op = MPI.SUM)
-    qf = pool.rootcomm.all_reduce(qf, op = MPI.SUM)
+    qi = pool.rootcomm.allreduce(qi, op = MPI.SUM)
+    qf = pool.rootcomm.allreduce(qf, op = MPI.SUM)
 para.print(' Charge transfer analysis: ')
 para.print(' initial-state')
 para.print([pol_label[ixyz_list_[_]] + ': {:12.7}'.format(qi[_]) for _ in range(len(ixyz_list_))])
