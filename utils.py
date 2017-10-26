@@ -27,6 +27,11 @@ def ismpi():
     if set(mpi_var) & set(os.environ): return True
     else: return False
 
+def valid_comm(comm):
+    """ test if comm has been initialized and is a valid communicator"""
+    if MPI not in dir(): return False
+    return comm and comm != MPI.COMM_NULL
+
 def find_nocc(two_arr, n):
     """
     Given two sorted arrays of the SAME lengths and a number,

@@ -12,6 +12,7 @@ import bisect
 from constants import *
 from utils import *
 from init import *
+from spectra import *
 
 
 def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f, 
@@ -87,11 +88,19 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
     
     # energy axis
     omega_in = sp.linspace(e_lo_in, e_hi_in, nener_in + 1)
+
+    # distribute jobs over the omega_in axis
+    if valid_comm(comm):
+        rank, size = comm.Get_rank(), comm.Get_size()
+    else:
+        rank, size = 0, 1
     
+    iw_local = range(rank, nener_in + 1, size) # indices of omega_in that will be processed in this rank
+
     # M_v1c1 (omega_in): there are nener_in frequencies (excluding the point at e_hi_in)
     # *** Be careful of memory issue here ***
-    Mv1c1 = [sp.matrix(sp.zeros((nelec, nbnd_i - nelec), dtype = sp.complex128)) for iw in range(nener_in)]
-
+    Mv1c1 = [sp.matrix(sp.zeros((nelec, nbnd_i - nelec), dtype = sp.complex128)) for iw in range(len(iw_local))]
+    
     # compute Mv1c1
     for c1p in range(nelec, nbnd_f):
 
@@ -118,28 +127,45 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
         Ev1c1 += xi_c_zeta[: nelec, :] * xi_c_det # emission from conduction bands
         Ev1c1 -= la.kron(xmat_out[: nelec, 0], xi_v_zeta[nelec, nelec : nbnd_i]) # emission from valence bands
 
-        for iw in range(nener_in):
-
-            Mv1c1[iw] += Ev1c1 * Ac1p / (omega_in[iw] - ener_f[c1p] + 1j * Gamma_h) 
+        for iw, w_ind in enumerate(iw_local):
+            # Now this is the RIXS matrix element
+            Mv1c1[iw] += Ev1c1 * Ac1p / (omega_in[w_ind] - ener_f[c1p] + 1j * Gamma_h) 
 
 
     ## Construct the RIXS map for the given range of omega_in
 
     rixs_map = sp.matrix(sp.zeros((nener_in, nener_out + 1), dtype = sp.complex128)
+
+    # omega_out energy axis
     omega_out = sp.linspace(e_lo_out, e_hi_out, nener_out + 1)
+    class spec_info_class: pass
+    spec_info = spec_info_class()
+    spec_info.ELOW, spec_info.EHIGH, spec_info.NENER, spec_info.SIGMA = e_lo_out, e_hi_out, nener_out, gamma_f
 
     # find the brightest transition
     Mv1c1_max = 0
-    for iw in range(nener_in):
+    for iw in range(len(iw_local)):
         Mv1c1_max = max(Mv1c1_max, abs(Mv1c1[iw]).max())
+    if size > 1:
+        Mv1c1_max = comm.allreduce(sp.array([Mv1c1_max]), op = MPI.MAX)[0]
 
     # threshold for plotting
     M_thr = Mv1c1_max * sp.sqrt(I_thr)
 
     # broaden the spectral value for a fixed omega_in into a spectrum of omega_out
-    for iw in range(nener_in):
-        # look for coordinates
-        pass
-        
+    for iw, w_ind in enumerate(iw_local):
+        # look for significant matrix elements
+        coords = sp.where(abs(Mv1c1[iw]) > M_thr)
+        stick = [[omega_in[iw] - (ener_i[c1 + nelec] - ener_i[v1]), abs(Mv1c1[iw][v1, c1])] for v1, c1 in zip(coords[0], coords[1])]
+        omega_out, rixs_map[w_ind, :] = stick_to_spectrum(stick, spec_info, smear_func = gaussian)
     
-        
+    if size > 1:
+        rixs_map = comm.allreduce(rixs_map, op = MPI.SUM)
+
+    return rixs_map
+
+if __name__ == "main":
+    """
+    Below is for test purpose
+    """
+    pass
