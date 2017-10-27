@@ -30,7 +30,7 @@ class user_input_class(object):
         self.ELOW           = -2.0      # eV
         self.EHIGH          = 8.0       # eV
         self.ESHIFT_FINAL   = 0.0       # eV
-        self.NENER          = 100       # eV
+        self.NENER          = 100       # energy grid size
         self.SIGMA          = 0.2       # eV
         self.EVEC           = None      # electric field vector E
         self.smearing       = 'gauss'   # gauss or lor (lorentzian)
@@ -42,6 +42,16 @@ class user_input_class(object):
         self.maxfn          = 2         # final-state shakeup order
         self.I_thr          = 1e-3      # intensity cutoff
         
+        # RIXS parameters
+        self.RIXS_I_thr     = 1e-3          # rixs intensity cutoff
+        self.eloss_range    = 10            # the range of energy loss (below ELOW) in eV
+        self.loss_mode      = False         # True: output RIXS(x = omega_out = omega_in - eloss, y = omega_in)
+                                            # False: output RIXS(x = omega_in, y = energy loss)
+        self.inout_pol      = 'xx yy zz'    # polarization of incoming and outgoing photon. can also be xy, yz, zx ...
+                                            # xy means the in-photon polarized along x, out-photon along y
+        self.NENER_out      = 100           # omega_out or eloss grid size
+        self.SIGMA_out      = 0.2           # lifetime broadening of the RIXS final state
+
         # control flags
         self.gamma_only         = False         # Using Gamma-point only
         self.final_1p           = False         # Calculate one-body final-state spectra
@@ -84,6 +94,14 @@ class user_input_class(object):
                 self.EVEC = evec  
             except:
                 para.error(" E-field vector not correct. ")
+
+        # test polarization format of inout_pol
+        for pol_str in self.inout_pol.split():
+            if len(pol_str) != 2:
+                para.error("The length of '{}' is not 2. Only accept two polarization directions.".format(pol_str))
+            for s in pol_str:
+                if s not in pol_index:
+                    para.error("Don't recognize polarization symbol {} in {}".format(s, pol_str))
 
         if not para.comm: self.nproc_per_pool = 1
         # para.print(vars(self)) # debug

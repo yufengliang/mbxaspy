@@ -15,9 +15,10 @@ from init import *
 from spectra import *
 
 
-def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f, 
+def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
+            nbnd_i = -1, nbnd_f = -1, 
             e_in_lo = -2.0, e_in_hi = 8.0, nener_in = 100,
-            e_out_lo = -10.0, e_out_hi = 8.0, nener_out = 100,
+            loss_mode = False, eloss_range = -10, nener_out = 100,
             Gamma_h = 0.2, Gamma_f = 0.2,
             I_thr = 1e-3, 
             comm = None)
@@ -36,6 +37,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
     e_in_lo:    lower energy bound of the incoming photon (eV)
     e_in_hi:    higher ***
     nener_in:   #energy points
+    loss_mode:  use out-going photon energy (False) or energy loss (True)
     e_out_lo:   lower energy bound of the outgoing photon (eV)
     e_out_hi:   higher ***
     nener_out:  #energy points
@@ -50,8 +52,8 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
     """
 
     # in case they will be specified by users
-    nbnd_i = xi.shape[1]
-    nbnd_f = xi.shape[0]
+    if nbnd_i < 0: nbnd_i = xi.shape[1]
+    if nbnd_f < 0: nbnd_f = xi.shape[0]
     
     # make sure xmat_in and xmat_out are 1d row vectors
     xmat_in = sp.matrix(xmat_in).reshape(1, len(xmat_in))
@@ -140,7 +142,11 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
     omega_out = sp.linspace(e_lo_out, e_hi_out, nener_out + 1)
     class spec_info_class: pass
     spec_info = spec_info_class()
-    spec_info.ELOW, spec_info.EHIGH, spec_info.NENER, spec_info.SIGMA = e_lo_out, e_hi_out, nener_out, gamma_f
+    if loss_mode:
+        e_out_lo, e_out_hi = -2.0, eloss_range  
+    else:
+        e_out_lo, e_out_hi = e_in_lo - eloss_range, e_in_hi
+    spec_info.ELOW, spec_info.EHIGH, spec_info.NENER, spec_info.SIGMA = e_out_lo, e_out_hi, nener_out, gamma_f
 
     # find the brightest transition
     Mv1c1_max = 0
@@ -156,7 +162,10 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
     for iw, w_ind in enumerate(iw_local):
         # look for significant matrix elements
         coords = sp.where(abs(Mv1c1[iw]) > M_thr)
-        stick = [[omega_in[iw] - (ener_i[c1 + nelec] - ener_i[v1]), abs(Mv1c1[iw][v1, c1])] for v1, c1 in zip(coords[0], coords[1])]
+        if loss_mode:
+            stick = [[ener_i[c1 + nelec] - ener_i[v1], abs(Mv1c1[iw][v1, c1])] for v1, c1 in zip(coords[0], coords[1])]
+        else:
+            stick = [[omega_in[iw] - (ener_i[c1 + nelec] - ener_i[v1]), abs(Mv1c1[iw][v1, c1])] for v1, c1 in zip(coords[0], coords[1])]
         omega_out, rixs_map[w_ind, :] = stick_to_spectrum(stick, spec_info, smear_func = gaussian)
     
     if size > 1:

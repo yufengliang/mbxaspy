@@ -11,6 +11,7 @@ spec_xps_fname      = 'spec_xps'
 spec_xas_fname      = 'spec_xas'
 spec_bse_fname      = 'spec_bse.dat'
 spec_o_fname        = 'spec_o.dat'
+rixs_fname          = 'rixs'
 
 # acceptable data: name, size (bytes), and format in pack/unpack
 data_set = {'integer' : (4, 'i'), 'float' : (4, 'f') , 'double' : (8, 'd'), 'complex' : (16, 'dd')}
@@ -20,6 +21,7 @@ nxyz = 9
 
 # labels of polarization directions
 pol_label = {-2 : 'user evec', -1 : 'angular average', 0 : 'x', 1 : 'y', 2 : 'z'}
+pol_index = {'x' : 0, 'y' : 1, 'z' : 2}
 
 nbnd_max = 10000
 
