@@ -29,7 +29,7 @@ def ismpi():
 
 def valid_comm(comm):
     """ test if comm has been initialized and is a valid communicator"""
-    if MPI not in dir(): return False
+    if 'MPI' not in dir(): return False
     return comm and comm != MPI.COMM_NULL
 
 def find_nocc(two_arr, n):

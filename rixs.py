@@ -21,7 +21,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
             loss_mode = False, eloss_range = -10, nener_out = 100,
             Gamma_h = 0.2, Gamma_f = 0.2,
             I_thr = 1e-3, 
-            comm = None)
+            comm = None):
     """
     
     Calculate the RIXS at the f(1)-level using brute-force enumeration
@@ -56,40 +56,39 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
     if nbnd_f < 0: nbnd_f = xi.shape[0]
     
     # make sure xmat_in and xmat_out are 1d row vectors
-    xmat_in = sp.matrix(xmat_in).reshape(1, len(xmat_in))
-    xmat_out = sp.matrix(xmat_out).reshape(1, len(xmat_out))
+    xmat_in = sp.matrix(xmat_in).reshape(len(xmat_in), 1)
+    xmat_out = sp.matrix(xmat_out).reshape(len(xmat_out), 1)
 
     # sum up all initial-state channels after absorbing the incoming photon
-    xi_in = sp.matrix(xi[:, nelec : nbnd_i]) * sp.matrix(xmat_in[nelec : nbnd_i]).H
+    xi_in = sp.matrix(xi[:, nelec : nbnd_i]) * sp.matrix(xmat_in[nelec : nbnd_i, 0])
     
     # sum up amplitudes for all emission channels
-    xi_out = sp.matrix(xi[:, nelec : nbnd_i]) * sp.matrix(xmat_out[nelec : nbnd_i]).H    
+    xi_out = sp.matrix(xi[:, nelec : nbnd_i]) * sp.matrix(xmat_out[nelec : nbnd_i, 0])    
 
 
     ## auxiliary matrix for absorption
-    A_mat = sp.matrix(sp.zeros((nelec + 1, nelec + 1), dtype = sp.complex128))
+    A_mat = sp.matrix(sp.zeros((nbnd_f, nelec + 1), dtype = sp.complex128))
     # initialize the common part
-    A_mat[ : nelec + 1, : nelelc] = xi[ : nelec + 1, : nelec]
-    A_mat[ :, -1] = xi_in
-    A_det = la.det(A_det)
-    A_inv = la.inv(A_mat)
+    A_mat[ : nbnd_f, : nelec] = xi[ : nbnd_f, : nelec]
+    A_mat[ : nbnd_f, -1] = xi_in[: nbnd_f, 0]
+    A_det = la.det(A_mat[: nelec + 1, : nelec + 1])
+    A_inv = la.inv(A_mat[: nelec + 1, : nelec + 1])
     # get the expansion coefficient as for the absorption case
     A_zeta = A_mat[nelec : nbnd_f, :] * A_inv
 
-
     ## auxiliary matrices for emission
     # emission from conduction bands
-    xi_c_mat = sp.matrix(sp.zeros((nelec + 1, nelec + 1), dtype = sp.complex128))
+    xi_c_mat = sp.matrix(sp.zeros((nelec + 1, nbnd_i), dtype = sp.complex128))
     xi_c_mat[ : nelec, : nelec] = xi[ : nelec, : nelec]
-    xi_c_mat[ : nelec, -1] = xi_out[ : nelec, 0]
+    # xi_c_mat[ : nelec, -1] = xi_out[ : nelec, 0]
     # emission from valence bands
-    xi_v_mat = sp.matrix(sp.zeros((nelec + 1, nelec + 1), dtype = sp.complex128))
-    xi_v_mat[ : nelec, : nelec + 1] = xi[ : nelec, : nelec + 1]
+    xi_v_mat = sp.matrix(sp.zeros((nelec + 1, nbnd_i), dtype = sp.complex128))
+    xi_v_mat[ : nelec, : nbnd_i] = xi[ : nelec, : nbnd_i]
 
     ## RIXS matrix elements - depending on the omega_in
     
     # energy axis
-    omega_in = sp.linspace(e_lo_in, e_hi_in, nener_in + 1)
+    omega_in = sp.linspace(e_in_lo, e_in_hi, nener_in + 1)
 
     # distribute jobs over the omega_in axis
     if valid_comm(comm):
@@ -111,16 +110,16 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
 
         # update the auxiliary matrices with the new c1p row
 
-        xi_c_mat[ -1, : nelec] = xi[c1p, : nelec]
-        xi_c_mat[ -1, -1] = xi_out[c1p, 0]
-        
-        xi_v_mat[ -1, : nelec + 1] = xi[c1p, : nelec + 1]
+        xi_c_mat[ -1, : nbnd_i] = xi[c1p, : nbnd_i]
+        xi_c_square_mat = sp.concatenate((xi_c_mat[:, : nelec], xi_out[: nelec + 1, 0]), axis = 1)
+        xi_c_square_mat[-1, -1] = xi_out[c1p, 0]
+        xi_v_mat[ -1, : nbnd_i] = xi[c1p, : nbnd_i]
 
         # I am gonna save the sherman-morrison formula for later
-        xi_c_det = la.det(xi_c_mat)
-        xi_v_det = la.det(xi_v_mat)
-        xi_c_inv = la.inv(xi_c_mat)
-        xi_v_inv = la.inv(xi_v_mat)
+        xi_c_det = la.det(xi_c_square_mat)
+        xi_v_det = la.det(xi_v_mat[:, : nelec + 1])
+        xi_c_inv = la.inv(xi_c_square_mat)
+        xi_v_inv = la.inv(xi_v_mat[:, : nelec + 1])
         xi_c_zeta = xi_c_inv * xi_c_mat[:, nelec : nbnd_i]
         xi_v_zeta = xi_v_inv * xi_v_mat[:, nelec : nbnd_i]
 
@@ -136,7 +135,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
 
     ## Construct the RIXS map for the given range of omega_in
 
-    rixs_map = sp.matrix(sp.zeros((nener_in, nener_out + 1), dtype = sp.complex128)
+    rixs_map = sp.matrix(sp.zeros((nener_in, nener_out + 1), dtype = sp.complex128))
 
     # omega_out energy axis
     omega_out = sp.linspace(e_lo_out, e_hi_out, nener_out + 1)
