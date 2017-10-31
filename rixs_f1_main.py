@@ -362,7 +362,7 @@ if nspin == 2:
 spec_xps = init_spec()[0]
 if not userin.xps_only:
     # rixs_maps[spin][polarization]
-    rixs_maps = [[sp.matrix(sp.zeros(rixs_maps_all[0][0].shape)) for pol in inout_pols] for s in range(nspin)]
+    rixs_maps = [[rixs_map_class(rixs_maps_all[0][0]) for pol in inout_pols] for s in range(nspin)]
 
 for isk, sk in enumerate(pool.sk_list):
     ispin, ik = sk
@@ -376,10 +376,10 @@ spec_xps *= weight
 # mpi reduce
 para.print('Collecting spectra at all k-points...', flush = True)
 spec_xps.mp_sum(pool.rootcomm)
-if not userin.xps_only and valid_comm(pool.rootcomm):
+if not userin.xps_only:
     for ispin in range(nspin):
         for ip in range(len(inout_pols)):
-            rixs_maps[ispin][ip] = pool.rootcomm.allreduce(rixs_maps[ispin][ip], op = MPI.SUM)
+            rixs_maps[ispin][ip].mp_sum(pool.rootcomm)
 para.print('Spectra at all k-points collected.\n', flush = True)
 
 # This requires the world root is also one of the pool roots: can be made more robust
@@ -389,8 +389,9 @@ if para.isroot():
     if not userin.xps_only:
         for ispin in range(nspin):
             for ip, pol in enumerate(inout_pols):
-                if userin.loss_mode: rixs_maps[ispin][ip] = rixs_maps[ispin][ip].T
-                sp.savetxt(rixs_fname + '.ispin{}.{}'.format(ispin, pol) + postfix, rixs_maps[ispin][ip], delimiter = ' ', fmt = '%.6e')
+                if userin.loss_mode: rixs_maps[ispin][ip].I = rixs_maps[ispin][ip].I.T
+                rixs_fname_tmp = rixs_fname + '.ispin{}.{}'.format(ispin, pol) + postfix
+                rixs_maps[ispin][ip].savetxt(rixs_fname_tmp)
 
 ## Convolute the initial-state spectrum with XPS: test orthogonality
 if userin.want_spec_o:

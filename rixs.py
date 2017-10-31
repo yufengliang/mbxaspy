@@ -8,12 +8,42 @@ from __future__ import print_function
 import sys
 import os
 import bisect
+import numbers
 
 from constants import *
 from utils import *
 from init import *
 from spectra import *
 
+class rixs_map_class(object):
+    """
+    a class for storing and manipulating the RIXS 2D map
+    """
+    def __init__(self, rixs_map = None):
+        if isinstance(rixs_map, rixs_map_class):
+            self.I = sp.matrix(sp.zeros(rixs_map.I.shape))
+            self.omega_in = rixs_map.omega_in
+            self.omega_out = rixs_map.omega_out
+            return
+        # other constructions ***
+
+    def __imul__(self, other):
+        if isinstance(other, numbers.Number):
+            self.I *= other
+            return self
+
+    def __iadd__(self, other):
+        if isinstance(other, rixs_map_class):
+            # There also should be a checker for energy axis ***
+            self.I += other.I
+            return self
+
+    def mp_sum(self, comm = None):
+        if valid_comm(pool.rootcomm):
+            self.I = comm.allreduce(self.I, op = MPI.SUM)
+
+    def savetxt(self, fname):
+        sp.savetxt(fname, self.I, delimiter = ' ', fmt = '%.6e')
 
 def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
             nbnd_i = -1, nbnd_f = -1, 
@@ -135,7 +165,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
 
     ## Construct the RIXS map for the given range of omega_in
 
-    rixs_map = sp.matrix(sp.zeros((nener_in + 1, nener_out + 1), dtype = sp.float64))
+    rixs_intensity = sp.matrix(sp.zeros((nener_in + 1, nener_out + 1), dtype = sp.float64))
 
     class spec_info_class: pass
     spec_info = spec_info_class()
@@ -166,11 +196,17 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
             stick = [[ener_i[c1 + nelec] - ener_i[v1], abs(Mv1c1[iw][v1, c1])] for v1, c1 in zip(coords[0], coords[1])]
         else:
             stick = [[omega_in[iw] - (ener_i[c1 + nelec] - ener_i[v1]), abs(Mv1c1[iw][v1, c1])] for v1, c1 in zip(coords[0], coords[1])]
-        omega_out, rixs_map[w_ind, :] = stick_to_spectrum(stick, spec_info, smear_func = gaussian)
+        omega_out, rixs_intensity[w_ind, :] = stick_to_spectrum(stick, spec_info, smear_func = gaussian)
     
     # if more than one MPI task
     if size > 1:
-        rixs_map = comm.allreduce(rixs_map, op = MPI.SUM)
+        rixs_intensity = comm.allreduce(rixs_intensity, op = MPI.SUM)
+
+    # store intensity and axes under rixs_map
+    rixs_map = rixs_map_class()
+    rixs_map.I = rixs_intensity
+    rixs_map.omega_in = omega_in
+    rixs_map.omega_out = omega_out
 
     return rixs_map
 
