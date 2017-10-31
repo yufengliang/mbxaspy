@@ -126,7 +126,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
         # emission amplitude: indexing: (v1, c1)
         Ev1c1 = sp.matrix(sp.zeros((nelec, nbnd_i - nelec), dtype = sp.complex128))
         Ev1c1 += xi_c_zeta[: nelec, :] * xi_c_det # emission from conduction bands
-        Ev1c1 -= la.kron(xmat_out[: nelec, 0], xi_v_zeta[nelec, nelec : nbnd_i]) # emission from valence bands
+        Ev1c1 -= la.kron(xmat_out[: nelec, 0], xi_v_zeta[nelec, : nbnd_i - nelec]) # emission from valence bands
 
         for iw, w_ind in enumerate(iw_local):
             # Now this is the RIXS matrix element
@@ -135,17 +135,18 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
 
     ## Construct the RIXS map for the given range of omega_in
 
-    rixs_map = sp.matrix(sp.zeros((nener_in, nener_out + 1), dtype = sp.complex128))
+    rixs_map = sp.matrix(sp.zeros((nener_in + 1, nener_out + 1), dtype = sp.float64))
 
-    # omega_out energy axis
-    omega_out = sp.linspace(e_lo_out, e_hi_out, nener_out + 1)
     class spec_info_class: pass
     spec_info = spec_info_class()
     if loss_mode:
         e_out_lo, e_out_hi = -2.0, eloss_range  
     else:
         e_out_lo, e_out_hi = e_in_lo - eloss_range, e_in_hi
-    spec_info.ELOW, spec_info.EHIGH, spec_info.NENER, spec_info.SIGMA = e_out_lo, e_out_hi, nener_out, gamma_f
+    spec_info.ELOW, spec_info.EHIGH, spec_info.NENER, spec_info.SIGMA = e_out_lo, e_out_hi, nener_out, Gamma_f
+
+    # omega_out energy axis
+    omega_out = sp.linspace(e_out_lo, e_out_hi, nener_out + 1)
 
     # find the brightest transition
     Mv1c1_max = 0
@@ -167,6 +168,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
             stick = [[omega_in[iw] - (ener_i[c1 + nelec] - ener_i[v1]), abs(Mv1c1[iw][v1, c1])] for v1, c1 in zip(coords[0], coords[1])]
         omega_out, rixs_map[w_ind, :] = stick_to_spectrum(stick, spec_info, smear_func = gaussian)
     
+    # if more than one MPI task
     if size > 1:
         rixs_map = comm.allreduce(rixs_map, op = MPI.SUM)
 

@@ -73,7 +73,13 @@ fscf = scf_class()
 __all__ += ['iscf', 'fscf']
 
 # graphics
-from matplotlib import pyplot as plt
+matplotlib_loaded = True
+try:
+    from matplotlib import pyplot as plt
+except ImportError:
+    para.print(' Fail to import matplotlib. Skip plotting figures.')
+    matplotlib_loaded = False
+
 __all__ += ['plt']
 
 # flush all the output

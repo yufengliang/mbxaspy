@@ -389,8 +389,8 @@ if para.isroot():
     if not userin.xps_only:
         for ispin in range(nspin):
             for ip, pol in enumerate(inout_pols):
-                if loss_mode: rixs_map[ispin][ip] = rixs_map[ispin][ip].T
-                sp.savetxt(rixs_fname + '.ispin{}.{}'.format(ispin, pol) + postfix, rixs_map[ispin][ip], delimiter = ' ', fmt = '%.6e')
+                if userin.loss_mode: rixs_maps[ispin][ip] = rixs_maps[ispin][ip].T
+                sp.savetxt(rixs_fname + '.ispin{}.{}'.format(ispin, pol) + postfix, rixs_maps[ispin][ip], delimiter = ' ', fmt = '%.6e')
 
 ## Convolute the initial-state spectrum with XPS: test orthogonality
 if userin.want_spec_o:
