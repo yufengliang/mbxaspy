@@ -22,8 +22,10 @@ class rixs_map_class(object):
     def __init__(self, rixs_map = None):
         if isinstance(rixs_map, rixs_map_class):
             self.I = sp.matrix(sp.zeros(rixs_map.I.shape))
-            self.omega_in = rixs_map.omega_in
-            self.omega_out = rixs_map.omega_out
+            # need improvements ***
+            self.omega_in = rixs_map.omega_in.copy()
+            self.omega_out = rixs_map.omega_out.copy()
+            self.loss_mode = rixs_map.loss_mode
             return
         # other constructions ***
 
@@ -44,6 +46,15 @@ class rixs_map_class(object):
 
     def savetxt(self, fname):
         sp.savetxt(fname, self.I, delimiter = ' ', fmt = '%.6e')
+
+    def imshow(self, fname):
+        if self.loss_mode:
+            extent = [min(self.omega_in), max(self.omega_in), min(self.omega_out), max(self.omega_out)]
+        else:
+            extent = [min(self.omega_out), max(self.omega_out), min(self.omega_in), max(self.omega_in)]
+        plt.imshow(self.I, extent = extent)
+        plt.savefig(fname, format = 'png', bbox_inches = 'tight', dpi = 100)
+        plt.close()      
 
 def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
             nbnd_i = -1, nbnd_f = -1, 
@@ -170,7 +181,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
     class spec_info_class: pass
     spec_info = spec_info_class()
     if loss_mode:
-        e_out_lo, e_out_hi = -2.0, eloss_range  
+        e_out_lo, e_out_hi = -5.0, eloss_range  
     else:
         e_out_lo, e_out_hi = e_in_lo - eloss_range, e_in_hi
     spec_info.ELOW, spec_info.EHIGH, spec_info.NENER, spec_info.SIGMA = e_out_lo, e_out_hi, nener_out, Gamma_f
@@ -193,9 +204,9 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
         # look for significant matrix elements
         coords = sp.where(abs(Mv1c1[iw]) > M_thr)
         if loss_mode:
-            stick = [[ener_i[c1 + nelec] - ener_i[v1], abs(Mv1c1[iw][v1, c1])] for v1, c1 in zip(coords[0], coords[1])]
+            stick = [[ener_i[c1 + nelec] - ener_i[v1], abs(Mv1c1[iw][v1, c1]) ** 2] for v1, c1 in zip(coords[0], coords[1])]
         else:
-            stick = [[omega_in[iw] - (ener_i[c1 + nelec] - ener_i[v1]), abs(Mv1c1[iw][v1, c1])] for v1, c1 in zip(coords[0], coords[1])]
+            stick = [[omega_in[iw] - (ener_i[c1 + nelec] - ener_i[v1]), abs(Mv1c1[iw][v1, c1]) ** 2] for v1, c1 in zip(coords[0], coords[1])]
         omega_out, rixs_intensity[w_ind, :] = stick_to_spectrum(stick, spec_info, smear_func = gaussian)
     
     # if more than one MPI task
@@ -207,6 +218,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
     rixs_map.I = rixs_intensity
     rixs_map.omega_in = omega_in
     rixs_map.omega_out = omega_out
+    rixs_map.loss_mode = loss_mode
 
     return rixs_map
 

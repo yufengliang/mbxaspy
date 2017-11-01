@@ -51,7 +51,8 @@ class user_input_class(object):
                                             # xy means the in-photon polarized along x, out-photon along y
         self.NENER_out      = 100           # omega_out or eloss grid size
         self.SIGMA_out      = 0.2           # lifetime broadening of the RIXS final state
-
+        self.draw_rixs      = False         # output RIXS spectra with matplotlib
+       
         # control flags
         self.gamma_only         = False         # Using Gamma-point only
         self.final_1p           = False         # Calculate one-body final-state spectra

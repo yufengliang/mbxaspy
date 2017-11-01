@@ -80,7 +80,7 @@ except ImportError:
     para.print(' Fail to import matplotlib. Skip plotting figures.')
     matplotlib_loaded = False
 
-__all__ += ['plt']
+__all__ += ['matplotlib_loaded', 'plt']
 
 # flush all the output
 para.print('', flush = True)

@@ -390,8 +390,10 @@ if para.isroot():
         for ispin in range(nspin):
             for ip, pol in enumerate(inout_pols):
                 if userin.loss_mode: rixs_maps[ispin][ip].I = rixs_maps[ispin][ip].I.T
-                rixs_fname_tmp = rixs_fname + '.ispin{}.{}'.format(ispin, pol) + postfix
-                rixs_maps[ispin][ip].savetxt(rixs_fname_tmp)
+                rixs_fname_tmp = rixs_fname + '.ispin{}.{}'.format(ispin, pol)
+                rixs_maps[ispin][ip].savetxt(rixs_fname_tmp + postfix)
+                if userin.draw_rixs and matplotlib_loaded:
+                    rixs_maps[ispin][ip].imshow(rixs_fname_tmp + '.png')
 
 ## Convolute the initial-state spectrum with XPS: test orthogonality
 if userin.want_spec_o:
