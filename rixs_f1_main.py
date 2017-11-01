@@ -245,7 +245,7 @@ for isk in range(pool.nsk):
             rixs_maps.append(
 
             rixs_f1(xi = xi, nelec = int(nocc), xmat_in = iscf.xmat[:, 0, ixyz_in], xmat_out = iscf.xmat[:, 0, ixyz_out], 
-                    ener_i = iscf.obf.eigval, ener_f = fscf.obf.eigval + fscf.e_lowest,
+                    ener_i = iscf.obf.eigval, ener_f = fscf.obf.eigval - fscf.e_lowest,
                     nbnd_i = iscf.nbnd_use, nbnd_f = fscf.nbnd_use,
                     e_in_lo = userin.ELOW, e_in_hi = userin.EHIGH, nener_in = userin.NENER,
                     loss_mode = userin.loss_mode, eloss_range = userin.eloss_range, nener_out = userin.NENER_out,

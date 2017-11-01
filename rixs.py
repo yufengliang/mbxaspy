@@ -51,8 +51,10 @@ class rixs_map_class(object):
         if self.loss_mode:
             extent = [min(self.omega_in), max(self.omega_in), min(self.omega_out), max(self.omega_out)]
         else:
-            extent = [min(self.omega_out), max(self.omega_out), min(self.omega_in), max(self.omega_in)]
-        plt.imshow(self.I, extent = extent)
+            extent = [min(self.omega_out), max(self.omega_out), min(self.omega_in), max(self.omega_in)]        
+        plt.imshow(self.I, extent = extent, origin = 'lower')
+        #plt.imshow(self.I)
+        plt.axes().set_aspect('equal')
         plt.savefig(fname, format = 'png', bbox_inches = 'tight', dpi = 100)
         plt.close()      
 
