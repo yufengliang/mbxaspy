@@ -169,12 +169,13 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
         # emission amplitude: indexing: (v1, c1)
         Ev1c1 = sp.matrix(sp.zeros((nelec, nbnd_i - nelec), dtype = sp.complex128))
         Ev1c1 += xi_c_zeta[: nelec, :] * xi_c_det # emission from conduction bands
-        Ev1c1 -= la.kron(xmat_out[: nelec, 0], xi_v_zeta[nelec, : nbnd_i - nelec]) # emission from valence bands
+        Ev1c1 -= la.kron(xmat_out[: nelec, 0], xi_v_zeta[nelec, : nbnd_i - nelec]) * xi_v_det # emission from valence bands
 
         for iw, w_ind in enumerate(iw_local):
             # Now this is the RIXS matrix element
             Mv1c1[iw] += Ev1c1 * Ac1p / (omega_in[w_ind] - ener_f[c1p] + 1j * Gamma_h) 
 
+        para.print('{} {}'.format(max([abs(_).max() for _ in Mv1c1]), abs(Ev1c1).max())) # debug
 
     ## Construct the RIXS map for the given range of omega_in
 
