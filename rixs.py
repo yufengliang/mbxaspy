@@ -65,11 +65,11 @@ def matrix_nlargest(mat2d, n):
 
     return a list of [value, i, j]
     """
-    index = mat2d.argsort(axis = None)[:-n] # sort the flattened 2D array and take the largest n numbers
+    index = mat2d.argsort(axis = None)[-n:] # sort the flattened 2D array and take the largest n numbers
     index = sp.unravel_index(index, mat2d.shape)
     index = sp.vstack(index).T
-    for ind in index:
-        ind = [mat2d[ind[0], ind[1]]] + ind
+    index = index.tolist() # This is important for later usage of heap operations
+    index = [[mat2d[ind[0], ind[1]]] + ind for ind in index]
     return index
     
 def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
@@ -231,8 +231,8 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
         # find major transitions
         index = matrix_nlargest(abs(sp.array(Mv1c1[iw])) ** 2, nmajor)
         for ind in index:
-            new_item = ind + [iw]
-            new_item[0] = -new_item[0]
+            new_item = list(ind) + [iw]
+            # new_item[0] = -new_item[0] # min heap
             if len(major_transitions) < nmajor: heapq.heappush(major_transitions, new_item)
             else: heapq.heappushpop(major_transitions, new_item)
 
