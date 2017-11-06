@@ -52,6 +52,7 @@ class user_input_class(object):
         self.NENER_out      = 100           # omega_out or eloss grid size
         self.SIGMA_out      = 0.2           # lifetime broadening of the RIXS final state
         self.draw_rixs      = False         # output RIXS spectra with matplotlib
+        self.rixs_nmajor    = 10            # number of major transitions to output
        
         # control flags
         self.gamma_only         = False         # Using Gamma-point only

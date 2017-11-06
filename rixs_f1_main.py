@@ -250,7 +250,7 @@ for isk in range(pool.nsk):
                     e_in_lo = userin.ELOW, e_in_hi = userin.EHIGH, nener_in = userin.NENER,
                     loss_mode = userin.loss_mode, eloss_range = userin.eloss_range, nener_out = userin.NENER_out,
                     Gamma_h = userin.SIGMA, Gamma_f = userin.SIGMA_out,
-                    I_thr = userin.RIXS_I_thr, 
+                    I_thr = userin.RIXS_I_thr, nmajor = userin.rixs_nmajor,
                     comm = None)
             )
 

@@ -9,6 +9,7 @@ import sys
 import os
 import bisect
 import numbers
+import heapq
 
 from constants import *
 from utils import *
@@ -58,12 +59,25 @@ class rixs_map_class(object):
         plt.savefig(fname, format = 'png', bbox_inches = 'tight', dpi = 100)
         plt.close()      
 
+def matrix_nlargest(mat2d, n):
+    """ 
+    Given a 2D matrix, find the n elements with the n largest values and return the coordinates.
+
+    return a list of [value, i, j]
+    """
+    index = mat2d.argsort(axis = None)[:-n] # sort the flattened 2D array and take the largest n numbers
+    index = sp.unravel_index(index, mat2d.shape)
+    index = sp.vstack(index).T
+    for ind in index:
+        ind = [mat2d[ind[0], ind[1]]] + ind
+    return index
+    
 def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
             nbnd_i = -1, nbnd_f = -1, 
             e_in_lo = -2.0, e_in_hi = 8.0, nener_in = 100,
             loss_mode = False, eloss_range = -10, nener_out = 100,
             Gamma_h = 0.2, Gamma_f = 0.2,
-            I_thr = 1e-3, 
+            I_thr = 1e-3, nmajor = 10,
             comm = None):
     """
     
@@ -175,7 +189,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
             # Now this is the RIXS matrix element
             Mv1c1[iw] += Ev1c1 * Ac1p / (omega_in[w_ind] - ener_f[c1p] + 1j * Gamma_h) 
 
-        para.print('{} {}'.format(max([abs(_).max() for _ in Mv1c1]), abs(Ev1c1).max())) # debug
+        para.print('max(Mv1c1) = {} max(Ev1c1) = {}'.format(max([abs(_).max() for _ in Mv1c1]), abs(Ev1c1).max())) # debug
 
     ## Construct the RIXS map for the given range of omega_in
 
@@ -202,6 +216,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
     # threshold for plotting
     M_thr = Mv1c1_max * sp.sqrt(I_thr)
 
+    major_transitions = []
     # broaden the spectral value for a fixed omega_in into a spectrum of omega_out
     for iw, w_ind in enumerate(iw_local):
         # look for significant matrix elements
@@ -210,11 +225,31 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
             stick = [[ener_i[c1 + nelec] - ener_i[v1], abs(Mv1c1[iw][v1, c1]) ** 2] for v1, c1 in zip(coords[0], coords[1])]
         else:
             stick = [[omega_in[iw] - (ener_i[c1 + nelec] - ener_i[v1]), abs(Mv1c1[iw][v1, c1]) ** 2] for v1, c1 in zip(coords[0], coords[1])]
+
         omega_out, rixs_intensity[w_ind, :] = stick_to_spectrum(stick, spec_info, smear_func = gaussian)
     
+        # find major transitions
+        index = matrix_nlargest(abs(sp.array(Mv1c1[iw])) ** 2, nmajor)
+        for ind in index:
+            new_item = ind + [iw]
+            new_item[0] = -new_item[0]
+            if len(major_transitions) < nmajor: heapq.heappush(major_transitions, new_item)
+            else: heapq.heappushpop(major_transitions, new_item)
+
     # if more than one MPI task
     if size > 1:
         rixs_intensity = comm.allreduce(rixs_intensity, op = MPI.SUM)
+        major_transitions_all = comm.allgather(major_transitions, root = 0)
+        major_transitions = []
+        for mt in major_transitions_all:
+            for item in mt:
+                if len(major_transitions) < nmajor: heapq.heappush(major_transitions, item)
+                else: heapq.heappushpop(major_transitions, item)
+
+    # print major transitions
+    for item in major_transitions:
+        ind = min(range(len(ener_f)), key = lambda i : abs(ener_f[i] - omega_in[item[3]])) # 3: iw *** convention may change  
+        item += [ind, ener_f[ind]] 
 
     # store intensity and axes under rixs_map
     rixs_map = rixs_map_class()
