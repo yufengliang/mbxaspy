@@ -189,7 +189,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
             # Now this is the RIXS matrix element
             Mv1c1[iw] += Ev1c1 * Ac1p / (omega_in[w_ind] - ener_f[c1p] + 1j * Gamma_h) 
 
-        para.print('max(Mv1c1) = {} max(Ev1c1) = {}'.format(max([abs(_).max() for _ in Mv1c1]), abs(Ev1c1).max())) # debug
+        para.print('c1p = {}, max(Mv1c1) = {}, max(Ev1c1) = {}'.format(c1p, max([abs(_).max() for _ in Mv1c1]), abs(Ev1c1).max())) # debug
 
     ## Construct the RIXS map for the given range of omega_in
 

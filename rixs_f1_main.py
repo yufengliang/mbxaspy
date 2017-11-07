@@ -239,6 +239,8 @@ for isk in range(pool.nsk):
         
         for pol in inout_pols:
             
+            para.print(' dealing with polarization {}'.format(pol))
+            
             ixyz_in = pol_index[pol[0]]
             ixyz_out = pol_index[pol[1]]
 
@@ -253,6 +255,8 @@ for isk in range(pool.nsk):
                     I_thr = userin.RIXS_I_thr, nmajor = userin.rixs_nmajor,
                     comm = None)
             )
+
+            para.print(' Done dealing with polarization {}'.format(pol))
 
         rixs_maps_all.append(rixs_maps)
 
