@@ -414,3 +414,42 @@ class spec_class(object):
         """
         return sp.sum(self.I, axis = 0) * self.dE
 
+def afi(xi, iscf, fscf, nocc, ixyz_list, offset = 0.0, evec = None):
+    """
+    Calculate the afi (final-initial projection) spectrum defined as:
+
+    sum_f | sum_{i in empty} < f~ | i > < i | r | h > | ^ 2 delta(E - e~_f)
+
+    The amplitude 
+
+    sum_{i in empty} < f~ | i > < i | r | h >
+
+    is calculated as:
+
+    < f~ | r | h > - sum_{i in occ} < f~ | i > < i | r | h >
+
+    to make connections with the final-state rule:
+
+    < f~ | r | h > 
+
+    """
+    
+    nocc = int(nocc) # do this for now ***
+    nbnd_f = min(xi.shape[0], fscf.xmat.shape[0], len(fscf.eigval))
+
+    ixmat = sp.matrix([[xmat_ixyz(iscf.xmat[ib, 0, :], ixyz, evec) for ixyz in ixyz_list] 
+            for ib in range(nocc)])
+    # sum_{i in occ} < f~ | i > < i | r | h >
+    occ_proj = sp.matrix(xi[nocc : nbnd_f, : nocc]).conjugate() * ixmat[:, :]
+    #  < f~ | r | h >
+    fxmat = sp.matrix([[xmat_ixyz(fscf.xmat[ib, 0, :], ixyz, evec) for ixyz in ixyz_list] 
+            for ib in range(nocc : nbnd_f)])
+    sticks = fxmat - occ_proj
+    sticks = abs(sp.array(sticks)) ** 2
+    sticks = sp.column_stack(fscf.eigval[nocc : nbnd_f] + offset, sticks)
+    return [list[stick] for stick in sticks]
+    
+    
+    
+
+    

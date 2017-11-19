@@ -63,6 +63,7 @@ def init_spec(nspin = 1):
 spec0_i = init_spec(nspin)
 if userin.final_1p: spec0_f = init_spec(nspin)
 if userin.want_bse: spec_bse = init_spec(nspin)
+if userin.afi_analysis: spec_afi = init_spec(nspin)
 
 if userin.spec_analysis:
     # perform analysis on spectra at Gamma-point only
@@ -123,7 +124,7 @@ for isk in range(pool.nsk):
     # sticks = xmat_to_sticks(iscf, [-2], nocc, evec = [1.0, 0.0, 0.0]) # debug
     # print(sticks[0]) debug
 
-    # initial-states: pec0_i.dat
+    # initial-states: spec0_i.dat
     sticks = xmat_to_sticks(iscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
     spec0_i[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
     spec0_i_os_sum = os_sum(sticks)
@@ -163,6 +164,11 @@ for isk in range(pool.nsk):
                 msg = eig_analysis_xi(xi) # debug
 
         para.print('  Matrix xi finished. ', flush = True)
+
+        ## afi (final-initial projection) spectra
+        if userin.afi_analysis:
+            sticks = afi(xi, iscf, fscf, nocc, ixyz_list, offset = -fscf.e_lowest, evec = userin.EVEC)
+            spec_afi[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')            
 
         ## BSE spectra
         if userin.want_bse:
@@ -328,6 +334,12 @@ if userin.want_bse:
     for ispin in range(nspin): spec_bse[ispin].mp_sum(pool.rootcomm) 
     spec_bse = mix_spin(spec_bse)
     if para.isroot(): spec_bse.savetxt(spec_bse_fname, offset = global_offset)
+
+## Output afi spectra
+if userin.afi_analysis:
+    for ispin in range(nspin): spec_afi[ispin].mp_sum(pool.rootcomm) 
+    spec_afi = mix_spin(spec_afi)
+    if para.isroot(): spec_afi.savetxt(spec_afi_fname, offset = global_offset)
 
 ## Calculate total many-body spectra 
 

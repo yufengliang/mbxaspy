@@ -54,6 +54,7 @@ class user_input_class(object):
         self.want_bse           = False         # Want to calculate BSE spectra
         self.want_spec_o        = False         # Convolute the spec0_i with spec_xps
         self.spec_analysis      = False         # perform analysis on spectra
+        self.afi_analysis       = False         # perform the final-initial projection to see if the final-state rule is good enough
 
     def read(self):
         """ input from stdin or userin"""
