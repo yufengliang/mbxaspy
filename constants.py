@@ -11,6 +11,7 @@ spec_xps_fname      = 'spec_xps'
 spec_xas_fname      = 'spec_xas'
 spec_bse_fname      = 'spec_bse.dat'
 spec_o_fname        = 'spec_o.dat'
+spec_afi_fname       = 'spec_afi.dat'
 
 # acceptable data: name, size (bytes), and format in pack/unpack
 data_set = {'integer' : (4, 'i'), 'float' : (4, 'f') , 'double' : (8, 'd'), 'complex' : (16, 'dd')}

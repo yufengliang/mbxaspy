@@ -443,11 +443,11 @@ def afi(xi, iscf, fscf, nocc, ixyz_list, offset = 0.0, evec = None):
     occ_proj = sp.matrix(xi[nocc : nbnd_f, : nocc]).conjugate() * ixmat[:, :]
     #  < f~ | r | h >
     fxmat = sp.matrix([[xmat_ixyz(fscf.xmat[ib, 0, :], ixyz, evec) for ixyz in ixyz_list] 
-            for ib in range(nocc : nbnd_f)])
+            for ib in range(nocc, nbnd_f)])
     sticks = fxmat - occ_proj
     sticks = abs(sp.array(sticks)) ** 2
-    sticks = sp.column_stack(fscf.eigval[nocc : nbnd_f] + offset, sticks)
-    return [list[stick] for stick in sticks]
+    sticks = sp.column_stack((fscf.eigval[nocc : nbnd_f] + offset, sticks))
+    return [list(stick) for stick in sticks]
     
     
     
