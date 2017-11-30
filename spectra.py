@@ -446,8 +446,14 @@ def afi(xi, iscf, fscf, nocc, ixyz_list, offset = 0.0, evec = None):
             for ib in range(nocc, nbnd_f)])
     sticks = fxmat - occ_proj
     sticks = abs(sp.array(sticks)) ** 2
+    # *** note that xmat_ixyz no longer work for spherical average in this case
+    if -1 in ixyz_list:
+        col_ind = [ind for ind, ixyz in enumerate(ixyz_list) if ixyz in [0, 1, 2]]
+        ind = ixyz_list.index(-1)
+        for stick in sticks:
+            stick[ind] = sum([stick[i] for i in col_ind]) / 3.0
     sticks = sp.column_stack((fscf.eigval[nocc : nbnd_f] + offset, sticks))
-    return [list(stick) for stick in sticks]
+    return [list([stick[0], ''] + list(stick[1 : ])) for stick in sticks]
     
     
     
