@@ -152,6 +152,11 @@ for isk in range(pool.nsk):
         para.print('  Calculating transformation matrix xi ... ')
         xi = compute_xi(iscf, fscf)
 
+        # perform Gram-Schmidt process to xi
+        if userin.gram_schmidt:
+            xi, xir = la.qr(xi)
+            del xir
+
         size = min(xi.shape)
         xi_eigvals = la.eigvals(xi[: size, : size])
         para.print('  Average of the eigenvalues of xi: {}'.format( sp.sum(abs(xi_eigvals)) / size ))

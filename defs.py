@@ -55,6 +55,7 @@ class user_input_class(object):
         self.want_spec_o        = False         # Convolute the spec0_i with spec_xps
         self.spec_analysis      = False         # perform analysis on spectra
         self.afi_analysis       = False         # perform the final-initial projection to see if the final-state rule is good enough
+        self.gram_schmidt       = False         # perform gram_schmidt process to xi
 
     def read(self):
         """ input from stdin or userin"""
