@@ -170,6 +170,14 @@ def Af_to_sticks(Af, offset = 0.0):
     """
     return [ [ complex(Af[conf][0]).real + offset, conf, float(abs(Af[conf][1]) ** 2) ] for conf in Af]
 
+def calc_occ_pdos(scf, ixyz_list, nocc = 0, evec = None):
+    """
+    Calculate the integral of the occupied part of the spectra
+    Q = int_{E < E_f} d E sigma(E)
+    """
+    # *** multiple core levels unsupported now (ncp > 1)
+    return [sum([abs(xmat_ixyz(scf.xmat[ib, 0, :], ixyz, evec)) ** 2 for ib in range(int(nocc))]) for ixyz in ixyz_list]
+
 def os_sum(sticks):
     """
     sum up the oscillator strengths of all sticks
@@ -406,3 +414,48 @@ class spec_class(object):
         """
         return sp.sum(self.I, axis = 0) * self.dE
 
+def afi(xi, iscf, fscf, nocc, ixyz_list, offset = 0.0, evec = None):
+    """
+    Calculate the afi (final-initial projection) spectrum defined as:
+
+    sum_f | sum_{i in empty} < f~ | i > < i | r | h > | ^ 2 delta(E - e~_f)
+
+    The amplitude 
+
+    sum_{i in empty} < f~ | i > < i | r | h >
+
+    is calculated as:
+
+    < f~ | r | h > - sum_{i in occ} < f~ | i > < i | r | h >
+
+    to make connections with the final-state rule:
+
+    < f~ | r | h > 
+
+    """
+    
+    nocc = int(nocc) # do this for now ***
+    nbnd_f = min(xi.shape[0], fscf.xmat.shape[0], len(fscf.eigval))
+
+    ixmat = sp.matrix([[xmat_ixyz(iscf.xmat[ib, 0, :], ixyz, evec) for ixyz in ixyz_list] 
+            for ib in range(nocc)])
+    # sum_{i in occ} < f~ | i > < i | r | h >
+    occ_proj = sp.matrix(xi[nocc : nbnd_f, : nocc]).conjugate() * ixmat[:, :]
+    #  < f~ | r | h >
+    fxmat = sp.matrix([[xmat_ixyz(fscf.xmat[ib, 0, :], ixyz, evec) for ixyz in ixyz_list] 
+            for ib in range(nocc, nbnd_f)])
+    sticks = fxmat - occ_proj
+    sticks = abs(sp.array(sticks)) ** 2
+    # *** note that xmat_ixyz no longer work for spherical average in this case
+    if -1 in ixyz_list:
+        col_ind = [ind for ind, ixyz in enumerate(ixyz_list) if ixyz in [0, 1, 2]]
+        ind = ixyz_list.index(-1)
+        for stick in sticks:
+            stick[ind] = sum([stick[i] for i in col_ind]) / 3.0
+    sticks = sp.column_stack((fscf.eigval[nocc : nbnd_f] + offset, sticks))
+    return [list([stick[0], ''] + list(stick[1 : ])) for stick in sticks]
+    
+    
+    
+
+    
