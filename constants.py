@@ -1,4 +1,6 @@
 
+import math
+
 # File names
 # input of shirley_xas calculation
 iptblk_fname        = 'Input_Block.in'
@@ -39,6 +41,26 @@ det_thr_label           = 0.8       # % threshold for labeling determinants
 
 # physics constants
 Ryd = 13.605698065894
+
+# CG coefficients for j1 = l, j2 = 1 / 2
+def cghalf(sign, spin, l, m):
+    """
+    Calculate < l   (m - spin * 1/2),   1 / 2     spin * 1 / 2 | l + sign * 1 / 2   m >
+    sign, spin = +- 1
+    """
+    A = m / (l + 0.5)
+    return sign * math.sqrt(0.5 * (1 + sign * A)) if spin > 0 else math.sqrt(0.5 * (1 - sign * A))
+
+eso_const = 0.00045432
+
+def eso(Z, n, l, sign):
+    """
+    Calculate the energy of np 3 / 2 and np 1 / 2
+    sign = +- 1
+    """
+    a = eso_const * Z ** 4 / (n ** 3 * l * (l + 0.5) * (l + 1))
+    j = l + sign * 0.5
+    return a / 2.0 * (j * (j + 1) - l * (l + 1) - 0.5 * (0.5 + 1))
 
 # other
 elem_maxl = 5
