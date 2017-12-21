@@ -26,6 +26,10 @@ class user_input_class(object):
         self.scf_type       = 'shirley_xas'
         self.nproc_per_pool = 1
 
+        # atomic shell
+        self.Z              = 0
+        self.core_n         = 1
+
         # spectral information
         self.ELOW           = -2.0      # eV
         self.EHIGH          = 8.0       # eV
@@ -382,6 +386,7 @@ class scf_class(object):
             proj_offset +=  proj.nprojs[proj.get_s(I)]
 
         # calculate < nk | r_i | h_c >
+        self.ncp = 2 * lwfc2 + 1
         self.xmat = sp.zeros((self.nbnd, 2 * lwfc2 + 1, nxyz), dtype = sp.complex128)
         for pos in elem:
             lm_valence, m_core, ixyz, pos_val = pos[0] - 1, pos[1] - 1, pos[2] - 1, pos[3]

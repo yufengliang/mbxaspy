@@ -140,10 +140,21 @@ def xmat_ixyz(xmat, ixyz, evec):
 # os's are oscillator strengths
 # *** Maybe it will be become an object one day.
 
+def xmat_mmap(m):
+    """
+    read m, return index in xmat
+
+                     0, 1,  2, 3,  4
+    m value in xmat: 0, 1, -1, 2, -2, ... (Further confirm this)
+
+    """
+    return int(abs(m) * 2 - (m > 0))
+
 def xmat_to_sticks(scf, ixyz_list, nocc = 0, offset = 0.0, evec = None):
     """
     Convert the empty states and their oscillator strengths stored in scf.xmat
     into a stick array
+    for non-interacting spectra
 
     sticks: [[energy, "info", os_1, os_2, os_3, ...], ...]
     ixyz_list: allowed values of each element: -2, -1, 0, 1, 2, ...
@@ -160,6 +171,43 @@ def xmat_to_sticks(scf, ixyz_list, nocc = 0, offset = 0.0, evec = None):
     if nocc % 1 > small_thr:
         sticks[0][2 : ] *= nocc % 1 # adjust intensity
     return sticks
+
+def xmat_to_sticks_pshell(scf, ispin, ixyz_list, nocc = 0, offset = 0.0, evec = None):
+    """
+    
+    calculate sticks taking SO coupling into accounts
+
+    """
+    l = (scf.ncp - 1) / 2.0
+    sticks = []
+
+    for ib in range(int(nocc), scf.nbnd_use):
+
+        for sign in [-1, 1]:
+            # j loops over l - 1 / 2, l + 1 / 2
+            j = l + sign * 0.5
+            for im in range(int(2 * j + 1)):
+                # mj loops over -j .. j
+                mj = im - j
+                A = [0] * len(ixyz_list)
+                for spin in [1 - ispin * 2]:
+                    # overlap with | l mj - 1/2, 1/2 given spin >
+                    if -l <= mj - spin / 2.0 <= l:
+                        for ind, ixyz in enumerate(ixyz_list):
+                            if ixyz in [0, 1, 2]:
+                                A[ind] += cghalf(sign, spin, l, mj) * scf.xmat[ib, xmat_mmap(mj - spin / 2.0), ixyz]
+                            elif ixyz == -2:
+                                A[ind] += cghalf(sign, spin, l, mj) * sp.dot(scf.xmat[ib, xmat_mmap(mj - spin / 2.0), :], evec)
+                I = [abs(a) ** 2 for a in A]
+                if -1 in ixyz_list:
+                    I[ixyz_list.index(-1)] = I[ixyz_list.index(0)] + I[ixyz_list.index(1)] + I[ixyz_list.index(2)]
+
+                # Calculate SO-splitting energies
+                ener_so = eso(scf.userin.Z, scf.userin.core_n, l, sign)
+                I = [scf.eigval[ib] + offset + ener_so, ''] + I
+                sticks.append(I)
+    return sticks
+
 
 def Af_to_sticks(Af, offset = 0.0):
     """

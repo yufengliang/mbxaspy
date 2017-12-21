@@ -43,12 +43,15 @@ det_thr_label           = 0.8       # % threshold for labeling determinants
 Ryd = 13.605698065894
 
 # CG coefficients for j1 = l, j2 = 1 / 2
-def cghalf(sign, spin, l, m):
+def cghalf(sign, spin, l, mj):
     """
-    Calculate < l   (m - spin * 1/2),   1 / 2     spin * 1 / 2 | l + sign * 1 / 2   m >
+    Calculate < l   (mj - spin * 1/2),   1/2  spin * 1/2 | l + sign * 1/2   mj >
     sign, spin = +- 1
+
+    See: https://en.wikipedia.org/wiki/Clebsch–Gordan_coefficients
+    
     """
-    A = m / (l + 0.5)
+    A = mj / (l + 0.5)
     return sign * math.sqrt(0.5 * (1 + sign * A)) if spin > 0 else math.sqrt(0.5 * (1 - sign * A))
 
 eso_const = 0.00045432

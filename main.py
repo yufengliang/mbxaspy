@@ -125,14 +125,14 @@ for isk in range(pool.nsk):
     # print(sticks[0]) debug
 
     # initial-states: spec0_i.dat
-    sticks = xmat_to_sticks(iscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
+    sticks = xmat_to_sticks_pshell(iscf, ispin, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
     spec0_i[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
     spec0_i_os_sum = os_sum(sticks)
     # sp.savetxt('spec0_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
 
     # final-state: spec0_f.dat
     if userin.final_1p:
-        sticks = xmat_to_sticks(fscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
+        sticks = xmat_to_sticks_pshell(fscf, ispin, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
         spec0_f[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
     
     para.print('  One-body spectra finished.', flush = True)
