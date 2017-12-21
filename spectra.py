@@ -204,7 +204,7 @@ def xmat_to_sticks_soc(scf, ispin, ixyz_list, nocc = 0, offset = 0.0, evec = Non
 
                 # Calculate SO-splitting energies
                 ener_so = eso(scf.userin.Z, scf.userin.core_n, l, sign)
-                I = [scf.eigval[ib] + offset + ener_so, ''] + I
+                I = [scf.eigval[ib] + offset - ener_so, ''] + I
                 sticks.append(I)
     return sticks
 
