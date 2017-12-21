@@ -172,7 +172,7 @@ def xmat_to_sticks(scf, ixyz_list, nocc = 0, offset = 0.0, evec = None):
         sticks[0][2 : ] *= nocc % 1 # adjust intensity
     return sticks
 
-def xmat_to_sticks_pshell(scf, ispin, ixyz_list, nocc = 0, offset = 0.0, evec = None):
+def xmat_to_sticks_soc(scf, ispin, ixyz_list, nocc = 0, offset = 0.0, evec = None):
     """
     
     calculate sticks taking SO coupling into accounts
