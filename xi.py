@@ -79,6 +79,15 @@ def compute_xi(iscf, fscf):
 
         return xi
 
+    elif userin.scf_type == 'model':
+        
+        # iscf.eigvec = < phi_r | psi_i >, fscf.eigvec =  < phi_r | ~psi_f > 
+        # so < psi_i | ~psi_f > = sum_r < psi_i | phi_r > < phi_r | ~psi_f >
+        xi = iscf.eigvec[:, : iscf.nbnd_use].H * fscf.eigvec[:, : fscf.nbnd_use]
+        xi = xi.T
+
+        return xi
+    
     return None
 
 def plot_xi(xi):

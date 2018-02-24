@@ -106,13 +106,15 @@ for isk in range(pool.nsk):
     para.sep_line(second_sepl)
     para.print(' Importing initial-state scf\n', flush = True)
     iscf.input(isk = isk)
-    para.print('  xmat: the {0}th atom in ATOMIC_POSITIONS is excited.'.format(xatom(iscf.proj, iscf.xmat) + 1))
+    if userin.scf_type == 'shirley_xas':
+        para.print('  xmat: the {0}th atom in ATOMIC_POSITIONS is excited.'.format(xatom(iscf.proj, iscf.xmat) + 1))
 
     # Import the final-state scf calculation
     para.sep_line(second_sepl)
     para.print(' Importing final-state scf\n', flush = True)
     fscf.input(is_initial = False, isk = isk)
-    if userin.final_1p: para.print('  xmat: the {0}th atom in ATOMIC_POSITIONS card is excited.'.format(xatom(fscf.proj, fscf.xmat) + 1))
+    if userin.scf_type == 'shirley_xas':
+        if userin.final_1p: para.print('  xmat: the {0}th atom in ATOMIC_POSITIONS card is excited.'.format(xatom(fscf.proj, fscf.xmat) + 1))
 
     # Obtain the effective occupation number: respect the initial-state #electrons
     if nspin == 1: nocc = iscf.nocc
@@ -185,7 +187,7 @@ for isk in range(pool.nsk):
         para.sep_line(second_sepl)
         para.print('  Calculating many-body XPS spectra ... ')
 
-        Af_list, msg = quick_det(xi[:, 0 : int(nocc)], ener = fscf.obf.eigval,
+        Af_list, msg = quick_det(xi[:, 0 : int(nocc)], ener = fscf.eigval,
                                  fix_v1 = False, maxfn = userin.maxfn - 1,
                                  I_thr = userin.I_thr,
                                  e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
@@ -252,7 +254,7 @@ for isk in range(pool.nsk):
             # Add the last column
             xi_c_ = sp.concatenate((xi[:, 0 : int(nocc)], xi_c), axis = 1)
 
-            Af_list, msg = quick_det(xi_c_, ener = fscf.obf.eigval,
+            Af_list, msg = quick_det(xi_c_, ener = fscf.eigval,
                                      fix_v1 = True, maxfn = userin.maxfn,
                                      I_thr = userin.I_thr,
                                      e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
@@ -263,7 +265,7 @@ for isk in range(pool.nsk):
 
             for order, Af in enumerate(Af_list):
 
-                sticks = Af_to_sticks(Af, offset = fscf.obf.eigval[int(nocc)] - fscf.e_lowest)
+                sticks = Af_to_sticks(Af, offset = fscf.eigval[int(nocc)] - fscf.e_lowest)
 
                 # important information for understanding shakeup effects and convergence
                 if len(sticks) > 0:

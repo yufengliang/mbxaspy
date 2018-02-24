@@ -635,12 +635,138 @@ class scf_class(object):
                 
             fh.close()
         
+    
+    def input_model(self, is_initial = True, isk = 0, nelec = -1):
+        """
+        input from a general model calculation,
+        which can be a tight-binding model or a scf code that does not need PAW corrections.
+
+        input_model mainly asks for files as below (each for initial and final state):
+
+        eigval.npy: eigenvalue files saved as a np array 
+        eigvec.npy: eigenvector files saved as a np array
+
+        """
+
+        para    = self.para
+        userin  = self.userin
+        sp      = self.sp
+
+        # stripe the i/f postfix
+        if is_initial: postfix = '_i'
+        else: postfix = '_f'
+
+        # construct the path to the scf calculation and the file prefix
+        path, nbnd_use = tuple([getattr(userin, _ + postfix) for _ in ['path', 'nbnd']])
+
+        if isk < 0: # first time to input
+            
+            if nelec >= 0: self.nelec = nelec
+
+            eigval = sp.load(path + '/eigval.npy')
+            if 'real' in dir(eigval): # !!! This is not standard
+                eigval = eigval.real
+            print(eigval)
+
+            self.nocc = self.nelec / float(self.nspin) # !!! needs improvement for lifted spin degeneracy
+            eigvec = sp.load(path + '/eigvec.npy')
         
+            if len(eigvec.shape) != 2:
+                para.error('eigenvector data from {0} is {1}, which is not 2. '.format(path + '/eigvec.npy', len(eigvec.shape)))
+
+            self.nbnd = min(len(eigval), eigvec.shape[1])
+
+            # adjust the no. of bands actually used
+            self.nbnd_use = nbnd_use if 0 < nbnd_use < self.nbnd else self.nbnd
+            
+            if not userin.xps_only:
+                xmat = sp.load(path + '/xmat.npy')
+                if len(xmat.shape) != 3:
+                    para.error('xmat data from {0} is {1}, which is not 3. '.format(path + '/xmat.npy', len(xmat.shape)))
+
+            # determine e_lowest from nelec
+            self.e_lowest = eigval[max(int((self.nelec - 1) / self.nspin), 0)]
+
+            # !!! In future I should wrap this in a function !!!
+            # initialize k-points
+            self.nk = 1     # in future, multiple k-points could be supported
+            # self.nk_use = 1 if userin.gamma_only else self.nk
+            self.nk_use = userin.nk_use if userin.nk_use > 0 else self.nk
+            if userin.gamma_only:
+                self.nk_use = 1
+
+            if self.nk_use > self.nk: para.error('Number of kpoints to be used ({0}) larger than kpoints provided ({1})'.format(self.nk_use, self.nk))
+
+            self.kpt = kpoints_class(nk = self.nk_use)
+            
+            # print out basis information
+            info_str = ('  number of bands (nbnd)                    = {}\n'\
+                     +  '  number of bands used (nbnd_use)           = {}\n'\
+                     +  '  number of spins (nspin)                   = {}\n'\
+                     +  '  number of k-points (nk)                   = {}\n'\
+                     +  '  number of electrons (nelec)               = {}\n'\
+                     +  '  CBM                                       = {}\n'\
+                        ).format(self.nbnd, self.nbnd_use, self.nspin, self.nk, self.nelec, float(self.e_lowest))
+            para.print(info_str, flush = True)
+
+            # !!! In future I should wrap this in a function !!!
+            if is_initial and not para.pool.up:
+                # set up pools
+                nsk = self.nk_use * self.nspin
+                # if (0, k) and (1, k) can be treated on different pools
+                # if nsk < para.size / userin.nproc_per_pool:
+                #    para.print(' Too few (spin, k) tuples ({0}) to calculate for {1} pools.'.format(nsk, int(para.size / userin.nproc_per_pool)))
+                #    userin.nproc_per_pool = int(para.size / nsk)
+                #    para.print(' Increase nproc_per_pool to {0}\n'.format(int(userin.nproc_per_pool))
+
+                # if (0, k) and (1, k) can only be treated on the same pool
+                if self.nk_use < para.size / userin.nproc_per_pool:
+                    para.print(' Too few k-points ({0}) to calculate for {1} pools.'.format(self.nk_use, int(para.size / userin.nproc_per_pool)))
+                    userin.nproc_per_pool = int(para.size / self.nk_use) # for the contiguous mode
+                    para.print(' Increase nproc_per_pool to {0}\n'.format(int(userin.nproc_per_pool)))
+
+                para.pool.set_pool(userin.nproc_per_pool)
+                para.pool.info()
+
+                # get spin and k-point index processed by this pool
+                para.pool.set_sk_list(nspin = self.nspin, nk = self.nk, nk_use = self.nk_use)
+                # para.pool.print(str(para.pool.sk_list) + ' ' + str(para.pool.sk_offset)) # debug
+                para.pool.sk_info()
+
+            return
+
+        # input eigenvalue formally
+        self.eigval = sp.load(path + '/eigval.npy')
+        if 'real' in dir(self.eigval): # !!! this is not standard
+            self.eigval = self.eigval.real
+            
+        para.print('  Band energies (eV): ')
+        if self.nspin == 1: nocc = self.nocc
+        else:
+            ispin, ik  = para.pool.sk_list[isk] 
+            nocc = self.nocc[ik][ispin]
+        para.print('  occupation number: {0}'.format(nocc))
+        para.print('  local efermi = {0:.4f}'.format(self.eigval[int(nocc) - 1]))
+        para.print('  ' + list2str_1d(self.eigval, int(nocc)))
+        para.print(flush = True)
+
+        # input eigenvector formally
+        self.eigvec = sp.load(path + '/eigvec.npy')
+
+        self.eigvec = sp.matrix(self.eigvec)
+        
+        if not userin.xps_only:
+            self.xmat = sp.load(path + '/xmat.npy')
+
+
     def input(self, is_initial = True, isk = -1, nelec = -1):
         """ input from one shirley run """
         if self.userin.scf_type == 'shirley_xas':
             if isk < 0: self.para.print(' Wavefunctions and energies will be imported from shirley_xas calculation. \n ')
             self.input_shirley(is_initial, isk, nelec)
+        elif self.userin.scf_type == 'model':
+            if isk < 0: self.para.print(' Wavefunctions and energies will be imported from a model calculation. \n ')
+            self.input_model(is_initial, isk, nelec)
         else:
             self.para.error(' Unsupported scf input: ' + scf_type)
             
