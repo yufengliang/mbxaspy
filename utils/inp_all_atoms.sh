@@ -5,12 +5,12 @@ imp=../Input_Block.in
 dollar='$'
 
 elem=O
-w=2
+w=2             # the width for the digit after the element, e.g., w=4 for O0012, "0012" is a 4 digit number. 
 chg_approx=FCH
-fana=../ana.out
+fana=../ana.out # the energies for relative alignment for elements in different chemical context are in this file.
 sigma=0.4
 
-cori_option=''
+cori_option=''  # for the header
 nnodes=12
 
 if [[ $HOST == *"cori"* ]]; then
