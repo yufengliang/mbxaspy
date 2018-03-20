@@ -293,7 +293,7 @@ def quick_det(xi_mat, ener, fix_ind1 = True, I_thr = 1e-3, maxfn = 2,
 		    # Energy filter
 	
 		    # don't go too high into the conduction band
-                    if ener[n - 1] - ener[new_c] + f_ener < e_low_thr: break
+                    if ener[n - 1] - ener[new_c] + f_ener < e_lo_thr: break
                     
                 else:
                     
@@ -315,7 +315,7 @@ def quick_det(xi_mat, ener, fix_ind1 = True, I_thr = 1e-3, maxfn = 2,
                 if xes:
                     # the sign of XES energy is reverse !
                     enew = ener[new_v] - ener[new_c] + f_ener
-                    if enew < e_low_thr: continue
+                    if enew < e_lo_thr: continue
                 else:
                     enew = ener[new_c] - ener[new_v] + f_ener
                     if enew > e_hi_thr: continue
