@@ -155,7 +155,7 @@ def xmat_to_sticks(scf, ixyz_list, nocc = 0, offset = 0.0, evec = None):
     # *** multiple core levels unsupported now (ncp > 1)
     sticks = [[scf.eigval[ib] + offset, ''] + 
               [abs(xmat_ixyz(scf.xmat[ib, 0, :], ixyz, evec)) ** 2 for ixyz in ixyz_list] 
-              for ib in range(int(nocc), scf.nbnd_use)]
+              for ib in range(0, int(nocc))] # only occupied bands for XES
     # partial occupancy of LUMO
     if nocc % 1 > small_thr:
         sticks[0][2 : ] *= nocc % 1 # adjust intensity
@@ -416,35 +416,28 @@ class spec_class(object):
 
 def afi(xi, iscf, fscf, nocc, ixyz_list, offset = 0.0, evec = None):
     """
-    Calculate the afi (final-initial projection) spectrum defined as:
+    Calculate the afi (final-initial projection) spectrum for XES defined as:
 
-    sum_f | sum_{i in empty} < f~ | i > < i | r | h > | ^ 2 delta(E - e~_f)
+    sum_{j occupied} | sum_{i in occupied} < j | i~ > < i~ | r | h > | ^ 2 delta(E - e~_j)
 
-    The amplitude 
+    can be connected with the final-state rule:
 
-    sum_{i in empty} < f~ | i > < i | r | h >
-
-    is calculated as:
-
-    < f~ | r | h > - sum_{i in occ} < f~ | i > < i | r | h >
-
-    to make connections with the final-state rule:
-
-    < f~ | r | h > 
+    < j | r | h >  (j occupied)
 
     """
     
     nocc = int(nocc) # do this for now ***
-    nbnd_f = min(xi.shape[0], fscf.xmat.shape[0], len(fscf.eigval))
+    nbnd_i = min(xi.shape[1], iscf.xmat.shape[0], len(iscf.eigval))
 
-    ixmat = sp.matrix([[xmat_ixyz(iscf.xmat[ib, 0, :], ixyz, evec) for ixyz in ixyz_list] 
+    fxmat = sp.matrix([[xmat_ixyz(fscf.xmat[ib, 0, :], ixyz, evec) for ixyz in ixyz_list] 
             for ib in range(nocc)])
-    # sum_{i in occ} < f~ | i > < i | r | h >
-    occ_proj = sp.matrix(xi[nocc : nbnd_f, : nocc]).conjugate() * ixmat[:, :]
+    # sum_{i in occ} < j | ~i > < ~i | r | h >
+    occ_proj = sp.matrix(xi[: nocc, : nocc]).T * fxmat[:, :]
     #  < f~ | r | h >
     fxmat = sp.matrix([[xmat_ixyz(fscf.xmat[ib, 0, :], ixyz, evec) for ixyz in ixyz_list] 
-            for ib in range(nocc, nbnd_f)])
-    sticks = fxmat - occ_proj
+            for ib in range(nocc)])
+    # sticks = fxmat - occ_proj
+    sticks = occ_proj
     sticks = abs(sp.array(sticks)) ** 2
     # *** note that xmat_ixyz no longer work for spherical average in this case
     if -1 in ixyz_list:

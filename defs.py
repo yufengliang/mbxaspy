@@ -44,7 +44,7 @@ class user_input_class(object):
         
         # control flags
         self.gamma_only         = False         # Using Gamma-point only
-        self.final_1p           = False         # Calculate one-body final-state spectra
+        self.final_1p           = True          # Calculate one-body final-state spectra: defaulted value is True for XES
         self.xi_analysis        = False         # perform full analysis on the xi matrix
         self.zeta_analysis      = False         # perform full analysis on the zeta matrix
         self.do_paw_correction  = True          # perform PAW corrections
@@ -322,7 +322,7 @@ class scf_class(object):
         self.nspin      = 1                         # number of spins
         self.nbasis     = 1                         # number of basis
         self.xmat       = sp.array([])              # single-particle matrix elements
-        self.e_lowest   = None                      # the energy of the lowest-lying empty/partiall occupied state in this scf
+        self.e_homo     = None                      # HOMO energy
 
 
     def input_xmat(self, fh, offset, sk_offset, is_initial = True):
@@ -559,8 +559,8 @@ class scf_class(object):
                         for k in range(self.nk_use):
                             offset = k
                             self.obf.input_eigval(fh, offset, output_msg = False)
-                            if not self.e_lowest or self.obf.eigval[int(nocc)] < self.e_lowest:
-                                self.e_lowest = self.obf.eigval[int(nocc)]
+                            if not self.e_homo or self.obf.eigval[int(nocc - 1e-3)] < self.e_homo:
+                                self.e_homo = self.obf.eigval[int(nocc - 1e-3)]
                     else:
                         self.nocc = []
                         for k in range(self.nk_use):
@@ -572,10 +572,10 @@ class scf_class(object):
                             # occupation numbers for spin up and down channels for this k
                             nocc = find_nocc(eigval, self.nelec)
                             self.nocc.append(nocc)
-                            emin = min(eigval[0][int(nocc[0])], eigval[1][int(nocc[1])])
-                            if not self.e_lowest or emin < self.e_lowest:
-                                self.e_lowest = emin
-                    para.print('  Energy of LUMO: {0} eV '.format(self.e_lowest), flush = True)
+                            emin = min(eigval[0][int(nocc[0] - 1e-3)], eigval[1][int(nocc[1] - 1e-3)])
+                            if not self.e_homo or emin < self.e_homo:
+                                self.e_homo = emin
+                    para.print('  Energy of HOMO: {0} eV '.format(self.e_homo), flush = True)
 
                 if isk >= 0:
                     para.print('  Band energies (eV): ')
@@ -684,8 +684,8 @@ class scf_class(object):
                 if len(xmat.shape) != 3:
                     para.error('xmat data from {0} is {1}, which is not 3. '.format(path + '/xmat.npy', len(xmat.shape)))
 
-            # determine e_lowest from nelec
-            self.e_lowest = eigval[max(int((self.nelec - 1) / self.nspin), 0)]
+            # determine e_homo from nelec
+            self.e_homo = eigval[max(int( (self.nelec - 1) / self.nspin - 1e-3 ), 0)]
 
             # !!! In future I should wrap this in a function !!!
             # initialize k-points
@@ -705,8 +705,8 @@ class scf_class(object):
                      +  '  number of spins (nspin)                   = {}\n'\
                      +  '  number of k-points (nk)                   = {}\n'\
                      +  '  number of electrons (nelec)               = {}\n'\
-                     +  '  CBM                                       = {}\n'\
-                        ).format(self.nbnd, self.nbnd_use, self.nspin, self.nk, self.nelec, float(self.e_lowest))
+                     +  '  VBM                                       = {}\n'\
+                        ).format(self.nbnd, self.nbnd_use, self.nspin, self.nk, self.nelec, float(self.e_homo))
             para.print(info_str, flush = True)
 
             # !!! In future I should wrap this in a function !!!

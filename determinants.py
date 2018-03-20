@@ -12,9 +12,10 @@ from utils import *
 from init import *
 
 
-def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2, 
-              e_lo_thr = -2.0, e_hi_thr = 8.0,
-              det_scaling_fac = 1.0, 
+def quick_det(xi_mat, ener, fix_ind1 = True, I_thr = 1e-3, maxfn = 2, 
+              e_lo_thr = -8.0, e_hi_thr = 2.0,
+              det_scaling_fac = 1.0,
+              xes = False,
               comm = None,
               zeta_analysis = False):
     """
@@ -44,44 +45,71 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
     This code first obtains this zeta-matrix and then search for all its minors
     with one column being the last one, starting from the size 1 x 1, 2 x 2, 3 x 3, and so forth
 
+    xes: if doing XES calculations, then the above column / row convention will be different compared to XAS/XPS
+    
     """
 
     Af_list = []
     msg = ''
-    m, n = xi_mat.shape
+    if xes and fix_ind1:
+        n, m = xi_mat.shape # n < m in XES
+    else:
+        m, n = xi_mat.shape
 
     if m < n:
-        msg = 'no. of rows smaller than no. of columns. '
+        msg = 'not enough no. of orbitals '
         return Af_list, msg
 
     ## Calculate the mother determinant: topmost n x n minor
 
-    det_mom = la.det(xi_mat[0 : n, :])
-    para.print('det_mom = {0}\n'.format(det_mom)) # debug
-    xi_mat_tmp = xi_mat[0 : n, :]
+    det_ref = la.det(xi_mat[ : n,  : n])
+    para.print('det_ref = {0}\n'.format(det_ref)) # debug
+    xi_mat_tmp = xi_mat[ : n,  : n]
 
-    if not fix_v1: # if doing xps then, then add the f^(0) term
-        Af_list.append({'' : sp.array([0.0, det_mom])})
+    if not fix_ind1: # if doing xps then, then add the f^(0) term
+        Af_list.append({'' : sp.array([0.0, det_ref])})
 
     """
-    If the mother determinant is too small, then replace the last row vector.
-    A small mother determinant may be caused by a weak first transition. The
+    If the reference determinant is too small, then replace the last row vector.
+    A small reference determinant may be caused by a weak first transition. The
     idea is to replace it with a higher-energy and bright transition.
 
     This works if we believe the f^(1) group always has very bright transitions. 
     """
-    # *** THIS MAY NOT ALWAYS WORK ***
-    if abs(det_mom) < small_thr:
+    # *** THIS MAY NOT ALWAYS WORK *** / not for XES now
+    if not xes and abs(det_ref) < small_thr:
 
         xi_mat_q, xi_mat_r = la.qr(xi_mat.T)
         xi_mat_tmp[n - 1] = xi_mat_q[:, n - 1].T
-        det_mom = la.det(xi_mat_tmp)
+        det_ref = la.det(xi_mat_tmp)
 
     # Construct the zeta-matrix
     xi_mat_inv = la.inv(xi_mat_tmp)
 
     ## Now the zeta matrix !
-    zeta_mat = sp.matrix(xi_mat[n - 1 : m, :]) * sp.matrix(xi_mat_inv)
+
+    if xes and fix_ind1:
+        
+        """
+        zeta matrix for XES:
+        
+        | < 1~ | o | h >   xi_{1, N - 1}  ... xi_{1, 1} |       |       |       xi_{1, nbnd_use}    ... xi_{1, N}
+        |                                               |       |       |
+        | < 2~ | o | h >   xi_{2, N - 1}  ... xi_{2, 1} |       |       |       xi_{2, nbnd_use}    ... xi_{2, N}
+        |                                               |   x   | zeta  | =
+        |    ...                                        |       |       |
+        |                                               |       |       |
+        | < N~ | o | h >   xi_{N, N - 1}  ... xi_{N, 1} |       |       |       xi_{N, nbnd_use}    ... xi_{N, N}
+        """
+        
+        zeta_mat = sp.matrix(xi_mat_inv) * sp.matrix(xi_mat[:, n : ])
+
+        # overwrite the first line because transformation coeff. related to < i~ | o | h > are not needed.
+        zeta_mat[0, :] = 0.0
+        zeta_mat[0, -1] = 1.0
+        
+    else:
+        zeta_mat = sp.matrix(xi_mat[n - 1 : m, :]) * sp.matrix(xi_mat_inv)
 
     # para.print(zeta_mat) # debug
 
@@ -109,19 +137,18 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
 
     """
 
-    ## Now produce the f(1) configurations as the parent configurations
-	
-    # Format of Af
-    # {'(v1) c1 v2 c2 v3 c3...': [energy, amplitude/intensity]}
+    ## Now starting the breadth-first search process
+	 
+    # Format of Af: {configuration string: [energy, amplitude/intensity]}
 
     Af = {}
     max_conf = ''
-    Af[max_conf] = sp.array([0.0, det_mom]) # This is considered as the f^(0) configuration
+    Af[max_conf] = sp.array([0.0, det_ref]) # This is considered as the f^(0) configuration
 
     # estimate the overall determinant theshold according to the maximum of the lowest-order contribution
-    max_zeta = abs(zeta_mat[:, n - 1]).max() if fix_v1 else abs(zeta_mat).max()
+    max_zeta = abs(zeta_mat[:, -1]).max() if fix_ind1 else abs(zeta_mat).max()
     para.print('max_zeta = {0}'.format(max_zeta))
-    f_lowest_max = max_zeta * abs(det_mom)
+    f_lowest_max = max_zeta * abs(det_ref)
     para.print('filter out transitions with intensity < {0:>6.3}% of the maximal intensity {1}'.format(I_thr * 100, abs(f_lowest_max) ** 2))
     det_thr = abs(I_thr) * f_lowest_max # you should not take the square root of I_thr because | dI / I | ~ | 2 dA / A |
     para.print('determinant threshold = {0}'.format(det_thr))
@@ -175,14 +202,25 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
         Af_new = {}
 
         """
-	The index of a configuration: conf = '(v1) c1 v2 c2 v3 c3 ...'
+        configuration string:
+
+        XPS
+        'v1 c1 v2 c2 v3 c3 ... '
+
+        XAS
+        'c1 v2 c2 v3 c3 ... ' (v1 = n - 1)
+
+        XES
+        'v1 c2 v2 c3 v3 ... ' (c1 = n - 1)
+
         that satisfies:
         v1 > v2 > v3 > ..., and c1 < c2 < c3 < ...
 
-	When fix_v1 = True, v1 is defaulted to (n - 1) and is omitted from conf.
+	When fix_ind1 = True, v1(c1) is defaulted to (n - 1) and is omitted from conf.
         
-        fix_v1 = True,      for XAS / XES
-                 False,     for XPS
+        fix_ind1 = True,      for XAS / XES
+                   False,     for XPS
+
         """
 
         for conf in Af:
@@ -193,14 +231,36 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
 				
             conf_ = [int(_) for _ in conf.split()]
 
-            # indices of occupied (v) states
-            conf_v = conf_[int(fix_v1) :: 2]
-            # the minimum of the chosen v states
-            if fix_v1 and ndepth > 1 : conf_minv = min(conf_v + [n - 1])
-            else: conf_minv = min(conf_v + [n])
-            # indices of empty (c) states ; conf_c is guaranteed to be sorted
-            conf_c = conf_[1 - int(fix_v1) :: 2]
-            conf_c_set = set(conf_c)
+            """
+            indexing of zeta for XES (n rows x m cols )
+
+                    ... N + 2   N + 1   N
+                    ______________________
+            N       |
+            N - 1   |
+            N - 2   |
+            ...     |
+            2       |
+            1       |
+                
+            """
+            if xes and fix_ind1:
+                # indices of empty (c) states
+                conf_c = conf_[1 :: 2]
+                # the maximum of the chosen c states
+                conf_maxc = max(conf_c) if ndepth > 1 else n - 1
+                # indices of occupied (v) states; conf_v is guaranteed to be sorted
+                conf_v = conf_[ :: 2]
+                conf_v_set = set(conf_v)
+            else:
+                # indices of occupied (v) states
+                conf_v = conf_[int(fix_ind1) :: 2]
+                # the minimum of the chosen v states
+                if fix_ind1 and ndepth > 1 : conf_minv = min(conf_v + [n - 1])
+                else: conf_minv = min(conf_v + [n])
+                # indices of empty (c) states ; conf_c is guaranteed to be sorted
+                conf_c = conf_[1 - int(fix_ind1) :: 2]
+                conf_c_set = set(conf_c)
 
             # energy of the parent configuration
             f_ener = Af[conf][0]
@@ -208,30 +268,56 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
             ## peform the breath-first search in descending column order
 
             # Make sure it is in descending column order
-            low_izeta = bisect.bisect_left([-j for i, j in zeta_coord], -(conf_minv - 1))
+            if xes and fix_ind1:
+                low_izeta = bisect.bisect_left([-j for i, j in zeta_coord], -(n + m - 2 - (conf_maxc + 1)))
+            else:
+                low_izeta = bisect.bisect_left([-j for i, j in zeta_coord], -(conf_minv - 1))
 
             # Loop over all nontrivial matrix elements of zeta
             # Distribute over the given communicator comm
             # *** You may also consider distribute conf
             for izeta in range(low_izeta + rank, len(zeta_coord), size):
 
-                # zeta_coord[0] = 0 corresponds to c = n - 1
                 new_c, new_v = zeta_coord[izeta]
-                new_c += n - 1
 
-		# ndepth = 1 is special when fix_v1 = True
-                if ndepth == 1 and fix_v1 and new_v < n - 1: break
+                if xes and fix_ind1:
 
-		# Make sure c doesn't appear twice in a configuration
-                if new_c in conf_c_set: continue
+                    new_c = n + m - 2 - new_c
+                    new_v = n - 1 - new_v
 
-		# Energy filter
+		    # ndepth = 1 is special when fix_ind1 = True
+                    if ndepth == 1 and fix_ind1 and new_c > n - 1: break
+
+                    # Make sure v doesn't appear twice in a configuration
+                    if new_v in conf_v_set: continue
+
+		    # Energy filter
 	
-		# don't go too deep into the valence band
-                if ener[n - 1] - ener[new_v] + f_ener > e_hi_thr: break
+		    # don't go too high into the conduction band
+                    if ener[n - 1] - ener[new_c] + f_ener < e_low_thr: break
+                    
+                else:
+                    # zeta_coord[0] = 0 corresponds to c = n - 1
+                    new_c += n - 1
+                    
+		    # ndepth = 1 is special when fix_ind1 = True
+                    if ndepth == 1 and fix_ind1 and new_v < n - 1: break
 
-                enew = ener[new_c] - ener[new_v] + f_ener
-                if enew > e_hi_thr: continue
+		    # Make sure c doesn't appear twice in a configuration
+                    if new_c in conf_c_set: continue
+
+		    # Energy filter
+	
+		    # don't go too deep into the valence band
+                    if ener[n - 1] - ener[new_v] + f_ener > e_hi_thr: break
+                    
+                if xes:
+                    # the sign of XES energy is reverse !
+                    enew = ener[new_v] - ener[new_c] + f_ener
+                    if enew < e_low_thr: continue
+                else:
+                    enew = ener[new_c] - ener[new_v] + f_ener
+                    if enew > e_hi_thr: continue
 
                 """
                 Find out the sign for the child configuration
@@ -252,18 +338,36 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
                 
                 """
 
-                insert_pos =  bisect.bisect_left(conf_c, new_c) # conf_c is sorted
-                v_sgn = (-1) ** insert_pos
+                if xes and fix_ind1:
 
-                ## Construct the new configuration
+                    insert_pos =  bisect.bisect_left(conf_v, new_v) # conf_v is sorted
+                    v_sgn = (-1) ** insert_pos
+
+                    ## Construct the new configuration
                 
-                # add new_c and new_v
-                conf_c_ = conf_c[slice(0, insert_pos)] + [new_c] + conf_c[slice(insert_pos, ndepth - 1)]
-                conf_v_ = list(conf_v)
-                if not fix_v1 or ndepth > 1: conf_v_ += [new_v]
-                conf_new = [None] * (2 * ndepth - int(fix_v1))
-                conf_new[1 - int(fix_v1) :: 2] = conf_c_
-                conf_new[int(fix_v1) :: 2] = conf_v_
+                    # add new_c and new_v
+                    conf_v_ = conf_v[slice(0, insert_pos)] + [new_v] + conf_v[slice(insert_pos, ndepth - 1)]
+                    conf_c_ = list(conf_c)
+                    if not fix_ind1 or ndepth > 1: conf_c_ += [new_c]
+                    conf_new = [None] * (2 * ndepth - int(fix_ind1))
+                    conf_new[1 - int(fix_ind1) :: 2] = conf_v_
+                    conf_new[int(fix_ind1) :: 2] = conf_c_
+
+                else:
+
+                    insert_pos =  bisect.bisect_left(conf_c, new_c) # conf_c is sorted
+                    v_sgn = (-1) ** insert_pos
+
+                    ## Construct the new configuration
+                
+                    # add new_c and new_v
+                    conf_c_ = conf_c[slice(0, insert_pos)] + [new_c] + conf_c[slice(insert_pos, ndepth - 1)]
+                    conf_v_ = list(conf_v)
+                    if not fix_ind1 or ndepth > 1: conf_v_ += [new_v]
+                    conf_new = [None] * (2 * ndepth - int(fix_ind1))
+                    conf_new[1 - int(fix_ind1) :: 2] = conf_c_
+                    conf_new[int(fix_ind1) :: 2] = conf_v_
+
                 conf_new = ' '.join([str(_) for _ in conf_new])
 
                 ## Calculate the determinantal contribution to the child configuration
@@ -312,7 +416,7 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
             Af = {conf : Af[conf] for conf in Af if abs(Af[conf][1]) > det_thr}
 
         # This is important: avoid double-counting the f^(0) term for xps
-        if rank == 0 and not fix_v1:
+        if rank == 0 and not fix_ind1:
             conf0 = ' '.join([str(n - 1), str(n - 1)])
             if conf0 in Af: Af.pop(conf0)
 

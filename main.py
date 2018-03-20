@@ -55,7 +55,7 @@ global_ener_axis = spec_class(userin).ener_axis
 # if para.isroot(): sp.savetxt('ener_axis.dat', global_ener_axis) # debug
 
 # global energy shift
-global_offset = userin.ESHIFT_FINAL + fscf.e_lowest
+global_offset = userin.ESHIFT_FINAL + fscf.e_homo
 
 # initialize i and f spec0
 def init_spec(nspin = 1):
@@ -127,14 +127,14 @@ for isk in range(pool.nsk):
     # print(sticks[0]) debug
 
     # initial-states: spec0_i.dat
-    sticks = xmat_to_sticks(iscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
+    sticks = xmat_to_sticks(iscf, ixyz_list_, nocc, offset = -fscf.e_homo, evec = userin.EVEC)
     spec0_i[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
     spec0_i_os_sum = os_sum(sticks)
     # sp.savetxt('spec0_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
 
     # final-state: spec0_f.dat
     if userin.final_1p:
-        sticks = xmat_to_sticks(fscf, ixyz_list_, nocc, offset = -fscf.e_lowest, evec = userin.EVEC)
+        sticks = xmat_to_sticks(fscf, ixyz_list_, nocc, offset = -fscf.e_homo, evec = userin.EVEC)
         spec0_f[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
     
     para.print('  One-body spectra finished.', flush = True)
@@ -174,12 +174,12 @@ for isk in range(pool.nsk):
 
         ## afi (final-initial projection) spectra
         if userin.afi_analysis:
-            sticks = afi(xi, iscf, fscf, nocc, ixyz_list, offset = -fscf.e_lowest, evec = userin.EVEC)
+            sticks = afi(xi, iscf, fscf, nocc, ixyz_list, offset = -fscf.e_homo, evec = userin.EVEC)
             spec_afi[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')            
 
         ## BSE spectra
         if userin.want_bse:
-            sticks = bse(xi, iscf, fscf, nocc, ixyz_list, offset = -fscf.e_lowest, evec = userin.EVEC)
+            sticks = bse(xi, iscf, fscf, nocc, ixyz_list, offset = -fscf.e_homo, evec = userin.EVEC)
             spec_bse[ispin].add_sticks(sticks, userin, prefac, mode = 'additive')
             # sp.savetxt('bse_sticks.dat', sp.array(sticks), delimiter = ' ', fmt = '%s')# debug
 
@@ -188,7 +188,7 @@ for isk in range(pool.nsk):
         para.print('  Calculating many-body XPS spectra ... ')
 
         Af_list, msg = quick_det(xi[:, 0 : int(nocc)], ener = fscf.eigval,
-                                 fix_v1 = False, maxfn = userin.maxfn - 1,
+                                 xes = True, fix_ind1 = False, maxfn = userin.maxfn - 1,
                                  I_thr = userin.I_thr,
                                  e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
                                  comm = pool.comm, 
@@ -231,9 +231,9 @@ for isk in range(pool.nsk):
 
         if userin.xps_only: continue
 
-        ## XAS spectra ( (N + 1) x (N + 1) )
+        ## XES spectra ( (N - 1) x (N - 1) )
         para.sep_line(second_sepl)
-        para.print('  Calculating many-body XAS spectra ... ')
+        para.print('  Calculating many-body XES spectra ... ')
 
         spec_xas_isk = init_spec()[0]
 
@@ -245,17 +245,33 @@ for isk in range(pool.nsk):
             if ixyz == -1: continue # deal with this at the end
 
             para.print('  ixyz = {0}'.format(ixyz))
-            # Compute xi_c
-            ixmat = sp.array([ xmat_ixyz( iscf.xmat[ib, 0, :], ixyz, evec = userin.EVEC ) for ib in range(iscf.nbnd_use) ])
+            # Compute xi_c: using matrix elements of the core-excited system for XES
+            # *** ignore shakeup excitations in the core-excited system / nocc = integer
+            ixmat = sp.array([ xmat_ixyz( fscf.xmat[ib, 0, :], ixyz, evec = userin.EVEC ) for ib in range(int(nocc)) ])
             # xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc, iscf.nbnd_use)
-            xi_c = compute_xi_c(xi, ixmat, nocc, iscf.nbnd_use)
+            xi_c = sp.matrix(ixmat.reshape(int(nocc), 1)) 
             # para.print('xi_c.shape = {0}'.format(str(xi_c.shape))) # debug
 
             # Add the last column
-            xi_c_ = sp.concatenate((xi[:, 0 : int(nocc)], xi_c), axis = 1)
+            xi_c_ = sp.concatenate((xi_c, 
+                                    sp.fliplr(xi[ : int(nocc), : int(nocc) - 1]), 
+                                    sp.fliplr(xi[ : int(nocc), int(nocc) : iscf.nbnd_use])), 
+                                    axis = 1)
+
+            """
+            for XES, xi_c_ is
+
+            < 1~ | o | h >   xi_{1, N - 1}  ... xi_{1, 1}   |   xi_{1, nbnd_use}    ... xi_{1, N}
+                                                            |
+            < 2~ | o | h >   xi_{2, N - 1}  ... xi_{2, 1}   |   xi_{2, nbnd_use}    ... xi_{2, N}
+                                                            |
+                ...                                         |
+                                                            |
+            < N~ | o | h >   xi_{N, N - 1}  ... xi_{N, 1}   |   xi_{N, nbnd_use}    ... xi_{N, N}
+            """
 
             Af_list, msg = quick_det(xi_c_, ener = fscf.eigval,
-                                     fix_v1 = True, maxfn = userin.maxfn,
+                                     xes = True, fix_ind1 = True, maxfn = userin.maxfn,
                                      I_thr = userin.I_thr,
                                      e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
                                      comm = pool.comm, 
@@ -265,7 +281,7 @@ for isk in range(pool.nsk):
 
             for order, Af in enumerate(Af_list):
 
-                sticks = Af_to_sticks(Af, offset = fscf.eigval[int(nocc)] - fscf.e_lowest)
+                sticks = Af_to_sticks(Af, offset = fscf.eigval[int(nocc - 1e-3)] - fscf.e_homo)
 
                 # important information for understanding shakeup effects and convergence
                 if len(sticks) > 0:
