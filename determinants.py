@@ -116,9 +116,9 @@ def quick_det(xi_mat, ener, fix_ind1 = True, I_thr = 1e-3, maxfn = 2,
     # print out a corner of zeta_mat
     ms, ns = min(ms_const, m - n + 1), min(ns_const, n)
     para.print('| zeta matrix | (left-upper corner): ')
-    para.print('{0:5}'.format('') + ' '.join(['{0:>12}'.format(_) for _ in range(n - ns, n)]))
+    para.print('{0:5}'.format('') + ' '.join(['{0:>12}'.format(_) for _ in range(zeta_mat.shape[1] - ns, zeta_mat.shape[1])]))
     for im in range(ms):
-        para.print('{0:5}'.format(im) + ' '.join(['{0:>12.3e}'.format(abs(_)) for _ in sp.array(zeta_mat[im, n - ns : n])[0]]))
+        para.print('{0:5}'.format(im) + ' '.join(['{0:>12.3e}'.format(abs(_)) for _ in sp.array(zeta_mat[im, - ns : ])[0]]))
     para.print()
     
     ## Check the sparsity of the zeta-matrix
