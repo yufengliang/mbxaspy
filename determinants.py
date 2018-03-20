@@ -191,8 +191,8 @@ def quick_det(xi_mat, ener, fix_ind1 = True, I_thr = 1e-3, maxfn = 2,
         zeta_coord = zip(zeta_coord[0], zeta_coord[1])
 
         # Now convert the coordinates back
-        # i = j', j = n - 1 - i'
-        zeta_coord = [(j, n - 1 - i) for i, j in zeta_coord]
+        # i = j', j = n_col - 1 - i'
+        zeta_coord = [(j, zeta_mat.shape[1] - 1 - i) for i, j in zeta_coord]
 
         # para.print(zeta_coord) # debug
         para.print('No. of signiciant matrix elements of zeta: {0}'.format(len(zeta_coord)))
@@ -248,7 +248,7 @@ def quick_det(xi_mat, ener, fix_ind1 = True, I_thr = 1e-3, maxfn = 2,
                 # indices of empty (c) states
                 conf_c = conf_[1 :: 2]
                 # the maximum of the chosen c states
-                conf_maxc = max(conf_c) if ndepth > 1 else n - 1
+                conf_maxc = max(conf_c) if ndepth > 1 else n - 2
                 # indices of occupied (v) states; conf_v is guaranteed to be sorted
                 conf_v = conf_[ :: 2]
                 conf_v_set = set(conf_v)
@@ -269,7 +269,7 @@ def quick_det(xi_mat, ener, fix_ind1 = True, I_thr = 1e-3, maxfn = 2,
 
             # Make sure it is in descending column order
             if xes and fix_ind1:
-                low_izeta = bisect.bisect_left([-j for i, j in zeta_coord], -(n + m - 2 - (conf_maxc + 1)))
+                low_izeta = bisect.bisect_left([-j for i, j in zeta_coord], -(m - 2 - (conf_maxc + 1)))
             else:
                 low_izeta = bisect.bisect_left([-j for i, j in zeta_coord], -(conf_minv - 1))
 
@@ -278,12 +278,11 @@ def quick_det(xi_mat, ener, fix_ind1 = True, I_thr = 1e-3, maxfn = 2,
             # *** You may also consider distribute conf
             for izeta in range(low_izeta + rank, len(zeta_coord), size):
 
-                new_c, new_v = zeta_coord[izeta]
 
                 if xes and fix_ind1:
 
-                    new_c = n + m - 2 - new_c
-                    new_v = n - 1 - new_v
+                    new_c = m - 2 - zeta_coord[izeta][1]
+                    new_v = n - 1 - zeta_coord[izeta][0]
 
 		    # ndepth = 1 is special when fix_ind1 = True
                     if ndepth == 1 and fix_ind1 and new_c > n - 1: break
@@ -297,6 +296,8 @@ def quick_det(xi_mat, ener, fix_ind1 = True, I_thr = 1e-3, maxfn = 2,
                     if ener[n - 1] - ener[new_c] + f_ener < e_low_thr: break
                     
                 else:
+                    
+                    new_c, new_v = zeta_coord[izeta]
                     # zeta_coord[0] = 0 corresponds to c = n - 1
                     new_c += n - 1
                     
