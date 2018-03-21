@@ -255,7 +255,7 @@ for isk in range(pool.nsk):
             # Add the last column
             xi_c_ = sp.concatenate((xi_c, 
                                     sp.fliplr(xi[ : int(nocc), : int(nocc) - 1]), 
-                                    sp.fliplr(xi[ : int(nocc), int(nocc) : iscf.nbnd_use])), 
+                                    sp.fliplr(xi[ : int(nocc), int(nocc) - 1: iscf.nbnd_use])), 
                                     axis = 1)
 
             """

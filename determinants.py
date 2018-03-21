@@ -93,13 +93,13 @@ def quick_det(xi_mat, ener, fix_ind1 = True, I_thr = 1e-3, maxfn = 2,
         """
         zeta matrix for XES:
         
-        | < 1~ | o | h >   xi_{1, N - 1}  ... xi_{1, 1} |       |       |       xi_{1, nbnd_use}    ... xi_{1, N}
+        | < 1~ | o | h >   xi_{1, N - 1}  ... xi_{1, 1} |       |       |       xi_{1, nbnd_i}    ... xi_{1, N}
         |                                               |       |       |
-        | < 2~ | o | h >   xi_{2, N - 1}  ... xi_{2, 1} |       |       |       xi_{2, nbnd_use}    ... xi_{2, N}
+        | < 2~ | o | h >   xi_{2, N - 1}  ... xi_{2, 1} |       |       |       xi_{2, nbnd_i}    ... xi_{2, N}
         |                                               |   x   | zeta  | =
         |    ...                                        |       |       |
         |                                               |       |       |
-        | < N~ | o | h >   xi_{N, N - 1}  ... xi_{N, 1} |       |       |       xi_{N, nbnd_use}    ... xi_{N, N}
+        | < N~ | o | h >   xi_{N, N - 1}  ... xi_{N, 1} |       |       |       xi_{N, nbnd_i}    ... xi_{N, N}
         """
         
         zeta_mat = sp.matrix(xi_mat_inv) * sp.matrix(xi_mat[:, n : ])
