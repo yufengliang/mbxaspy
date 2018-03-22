@@ -49,7 +49,7 @@ if not userin.spec0_only:
     from determinants import *
     spec_xps_all = []   
     sticks_xps_all = []
-    spec_xas_all = []
+    spec_xes_all = []
 
 global_ener_axis = spec_class(userin).ener_axis
 # if para.isroot(): sp.savetxt('ener_axis.dat', global_ener_axis) # debug
@@ -68,7 +68,7 @@ if userin.afi_analysis: spec_afi = init_spec(nspin)
 if userin.spec_analysis:
     # perform analysis on spectra at Gamma-point only
     def init_order(): return [[None] * 2 for order in range(userin.maxfn)]
-    spec_xps_g,     spec_xas_g      = init_order(), init_order()
+    spec_xps_g,     spec_xes_g      = init_order(), init_order()
     sticks_xps_g,   sticks_xas_g    = init_order(), init_order()
 
 
@@ -235,11 +235,11 @@ for isk in range(pool.nsk):
         para.sep_line(second_sepl)
         para.print('  Calculating many-body XES spectra ... ')
 
-        spec_xas_isk = init_spec()[0]
+        spec_xes_isk = init_spec()[0]
 
         for ixyz in ixyz_list_:
 
-            spec_xas_isk.add_sticks([], mode = 'append')
+            spec_xes_isk.add_sticks([], mode = 'append')
 
             # ixyz == -1 (non-polarized) is special. Can only be obtained by superposition of sticks
             if ixyz == -1: continue # deal with this at the end
@@ -287,23 +287,23 @@ for isk in range(pool.nsk):
                 if len(sticks) > 0:
                     para.print(fn_num_fmt.format( order + 1, len(sticks), max([s[2] for s in sticks]), os_sum(sticks)[0] / spec0_i_os_sum[ixyz]))
 
-                spec_xas_isk.add_sticks(sticks, userin, prefac, mode = 'additive')
+                spec_xes_isk.add_sticks(sticks, userin, prefac, mode = 'additive')
 
                 if userin.spec_analysis and ik == 0:
-                    spec_xas_g[order][ispin] = copy.deepcopy(spec_xas_isk)
+                    spec_xes_g[order][ispin] = copy.deepcopy(spec_xes_isk)
 
             para.print()
         # end of ixyz
         # go back and deal with average
         if -1 in ixyz_list_:
             col_ind = [ind for ind, ixyz in enumerate(ixyz_list_) if ixyz in [0, 1, 2]]
-            spec_xas_isk.average(col_ind, ixyz_list_.index(-1))
+            spec_xes_isk.average(col_ind, ixyz_list_.index(-1))
             if userin.spec_analysis:
                 for order in range(userin.maxfn):
-                    spec_xas_g[order][ispin].average(col_ind, ixyz_list_.index(-1))
+                    spec_xes_g[order][ispin].average(col_ind, ixyz_list_.index(-1))
 
-        spec_xas_isk.savetxt(spec_xas_fname + postfix, offset = global_offset)
-        spec_xas_all.append(spec_xas_isk)
+        spec_xes_isk.savetxt(spec_xes_fname + postfix, offset = global_offset)
+        spec_xes_all.append(spec_xes_isk)
 
         para.print('  Many-body XAS spectra finished. \n', flush = True)
     # end if spec0_only
@@ -383,7 +383,7 @@ if nspin == 2:
             ind = pool.sk_list.index((1 - ispin, ik))
             sticks_xps_twin = []
             for order in range(userin.maxfn): sticks_xps_twin += sticks_xps_all[ind][order]
-            spec_xas_all[isk] *= sticks_xps_twin
+            spec_xes_all[isk] *= sticks_xps_twin
         para.print(' many-body XAS convoluted.', flush = True)
 
     # convolute xps spectra
@@ -408,20 +408,20 @@ if nspin == 2:
             sticks_xps_twin = []
             for order in range(userin.maxfn):
                 sticks_xps_twin += sticks_xps_all[ind][order]
-                spec_xas_g[order][ispin] *= sticks_xps_g[order][1 - ispin]
+                spec_xes_g[order][ispin] *= sticks_xps_g[order][1 - ispin]
                 if ispin == 0: spec_xps_g[order][ispin] *= sticks_xps_g[order][1 - ispin]
     para.print(' many-body XPS at gamma convoluted.\n', flush = True)
 
 # intrapool summation
 
 spec_xps = init_spec()[0]
-if not userin.xps_only: spec_xas = init_spec(nspin)
+if not userin.xps_only: spec_xes = init_spec(nspin)
 
 for isk, sk in enumerate(pool.sk_list):
     ispin, ik = sk
     weight = iscf.kpt.weight[ik]    
     if ispin == 0: spec_xps += spec_xps_all[isk] # two spin channels are the same
-    if not userin.xps_only: spec_xas[ispin] += spec_xas_all[isk]
+    if not userin.xps_only: spec_xes[ispin] += spec_xes_all[isk]
 spec_xps *= weight
 
 # mpi reduce
@@ -429,15 +429,15 @@ para.print('Collecting spectra at all k-points...', flush = True)
 spec_xps.mp_sum(pool.rootcomm)
 if not userin.xps_only:
     for ispin in range(nspin):
-        spec_xas[ispin].mp_sum(pool.rootcomm)
-    spec_xas = mix_spin(spec_xas)
+        spec_xes[ispin].mp_sum(pool.rootcomm)
+    spec_xes = mix_spin(spec_xes)
 para.print('Spectra at all k-points collected.\n', flush = True)
 
 # This requires the world root is also one of the pool roots: can be made more robust
 if para.isroot():
     postfix = '.dat'
     spec_xps.savetxt(spec_xps_fname + postfix)
-    if not userin.xps_only: spec_xas.savetxt(spec_xas_fname + postfix, offset = global_offset)
+    if not userin.xps_only: spec_xes.savetxt(spec_xes_fname + postfix, offset = global_offset)
 
 ## Convolute the initial-state spectrum with XPS: test orthogonality
 if userin.want_spec_o:
@@ -448,7 +448,7 @@ if userin.want_spec_o:
 if userin.spec_analysis and para.isroot():
     for order in range(userin.maxfn):
         if not userin.xps_only: 
-            mix_spin(spec_xas_g[order]).savetxt(spec_xas_fname + '_maxfn_{}.dat'.format(order + 1), offset = global_offset)
+            mix_spin(spec_xes_g[order]).savetxt(spec_xes_fname + '_maxfn_{}.dat'.format(order + 1), offset = global_offset)
         spec_xps_g[order][0].savetxt(spec_xps_fname + '_maxfn_{}.dat'.format(order))
 
 # Bye ! ~
