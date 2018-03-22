@@ -270,7 +270,7 @@ for isk in range(pool.nsk):
             < N~ | o | h >   xi_{N, N - 1}  ... xi_{N, 1}   |   xi_{N, nbnd_use}    ... xi_{N, N}
             """
 
-            Af_list, msg = quick_det(xi_c_, ener = fscf.eigval,
+            Af_list, msg = quick_det(xi_c_, ener = iscf.eigval,
                                      xes = True, fix_ind1 = True, maxfn = userin.maxfn,
                                      I_thr = userin.I_thr,
                                      e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
