@@ -200,7 +200,7 @@ def rixs_f1(xi, nelec, xmat_in, xmat_out, ener_i, ener_f,
     if loss_mode:
         e_out_lo, e_out_hi = -5.0, eloss_range  
     else:
-        e_out_lo, e_out_hi = e_in_lo - eloss_range, e_in_hi
+        e_out_lo, e_out_hi = e_in_lo - eloss_range, e_in_lo # replace e_in_hi, because there is no emission above VBM for f1
     spec_info.ELOW, spec_info.EHIGH, spec_info.NENER, spec_info.SIGMA = e_out_lo, e_out_hi, nener_out, Gamma_f
 
     # omega_out energy axis
