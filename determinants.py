@@ -58,7 +58,7 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
 
     det_mom = la.det(xi_mat[0 : n, :])
     para.print('det_mom = {0}\n'.format(det_mom)) # debug
-    xi_mat_tmp = xi_mat[0 : n, :]
+    xi_mat_tmp = sp.array(xi_mat[0 : n, :])
 
     if not fix_v1: # if doing xps then, then add the f^(0) term
         Af_list.append({'' : sp.array([0.0, det_mom])})
@@ -73,8 +73,9 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
     # *** THIS MAY NOT ALWAYS WORK ***
     if abs(det_mom) < small_thr:
 
-        xi_mat_q, xi_mat_r = la.qr(xi_mat.T)
-        xi_mat_tmp[n - 1] = xi_mat_q[:, n - 1].T
+        print('det_mom too small: {} on proc {} ! Use qr to find a good one.'.format(det_mom, para.rank))
+        xi_mat_q, xi_mat_r = la.qr(xi_mat_tmp.T)
+        xi_mat_tmp[n - 1] = sp.array(xi_mat_q[:, n - 1].T)
         det_mom = la.det(xi_mat_tmp)
 
     # Construct the zeta-matrix
