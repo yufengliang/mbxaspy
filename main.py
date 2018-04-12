@@ -246,7 +246,7 @@ for isk in range(pool.nsk):
             # Compute xi_c
             ixmat = sp.array([ xmat_ixyz( iscf.xmat[ib, 0, :], ixyz, evec = userin.EVEC ) for ib in range(iscf.nbnd_use) ])
             # xi_c = compute_xi_c(xi, iscf.xmat[:, 0, ixyz], nocc, iscf.nbnd_use)
-            xi_c = compute_xi_c(xi, ixmat, nocc, iscf.nbnd_use)
+            xi_c = compute_xi_c(xi, ixmat, nocc, userin.nbnd_i0, iscf.nbnd_use)
             # para.print('xi_c.shape = {0}'.format(str(xi_c.shape))) # debug
 
             # Add the last column

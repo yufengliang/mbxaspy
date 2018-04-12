@@ -116,15 +116,16 @@ def eig_analysis_xi(xi, postfix = ''):
     return msg
 
 
-def compute_xi_c(xi, xmat_c, nocc, nbnd_i_use = nbnd_max):
+def compute_xi_c(xi, xmat_c, nocc, nbnd_i0, nbnd_i_use = nbnd_max):
     """
     Compute
         sum_c xi_{i, c} < phi_c | O | phi_h > ^ *
     =   sum_c < phi_c | ~phi_i > < phi_h | O | phi_c >
     =   (sum_c < ~phi_i | phi_c > < phi_c | O | phi_h >)^* 
+
     for all final-state orbital i.
 
-    c sums over all EMPTY initial-state orbitals
+    c sums over the initial-state orbitals from nocc + nbnd_i0 to nbnd_i
 
     arguments:
     xi:     xi matrix that is already calculated
@@ -138,7 +139,7 @@ def compute_xi_c(xi, xmat_c, nocc, nbnd_i_use = nbnd_max):
     nbnd_i = min(xi.shape[1], len(xmat_c_), nbnd_i_use)
     xmat_c_ = sp.matrix(xmat_c_)
     if xmat_c_.shape[1] > 1: xmat_c_ = xmat_c_.H
-    return xi[:, nocc : nbnd_i] * xmat_c_[nocc : nbnd_i, 0]
+    return xi[:, nocc + nbnd_i0 : nbnd_i] * xmat_c_[nocc + nbnd_i0: nbnd_i, 0]
 
     
 

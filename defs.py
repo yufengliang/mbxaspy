@@ -36,6 +36,7 @@ class user_input_class(object):
         self.smearing       = 'gauss'   # gauss or lor (lorentzian)
 
         self.nbnd_i         = nbnd_max
+        self.nbnd_i0        = 0         # lower bound of the initial-state bands: offset from LUMO
         self.nbnd_f         = nbnd_max
         self.nk_use         = 0         # no. of k-points used
 
