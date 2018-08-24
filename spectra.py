@@ -156,9 +156,10 @@ def xmat_to_sticks(scf, ixyz_list, nocc = 0, offset = 0.0, evec = None):
     sticks = [[scf.eigval[ib] + offset, ''] + 
               [abs(xmat_ixyz(scf.xmat[ib, 0, :], ixyz, evec)) ** 2 for ixyz in ixyz_list] 
               for ib in range(int(nocc), scf.nbnd_use)]
-    # partial occupancy of LUMO
+    # partial occupancy of LUMO (assuming sticks[0] is the LUMO)
     if nocc % 1 > small_thr:
-        sticks[0][2 : ] *= nocc % 1 # adjust intensity
+        for i in range(2, len(sticks[0])):
+            sticks[0][i] *= nocc % 1 # adjust intensity
     return sticks
 
 def Af_to_sticks(Af, offset = 0.0):
