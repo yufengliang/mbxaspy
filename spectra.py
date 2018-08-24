@@ -22,7 +22,7 @@ def gaussian_slice(x, sigma, mu):
     return a slice of x in which the gaussian is significant 
     exp(-0.5 * ((x - mu) / sigma) ** 2) < given_threshold
     """
-    r = sp.sqrt(-2.0 * sigma * sp.log(small_thr))
+    r = sigma * sp.sqrt(-2.0 * sp.log(small_thr))
     x_lo = bisect_left(x, mu - r)
     x_hi = bisect_right(x, mu + r)
     return slice(x_lo, x_hi)
