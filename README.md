@@ -2,9 +2,19 @@
 
 # Many-Body X-ray Absorption Spectrosopy with PYthon
 
-MBXASPY is a python software package initiated by [Yufeng Liang](https://scholar.google.com/citations?user=xiRU9IEAAAAJ&hl=en) at the [Molecular Foundry (TMF)](http://foundry.lbl.gov), [Lawrence Berkeley National Laboratory (LBNL)](https://www.lbl.gov), for predicting x-ray spectra using the determinant formalism. The determinant formalism is based on the independent-electron approximation as used in the density-functional theory (DFT) and hence the many-body wavefunctions used in Fermi's Golden rule take a form of a single Slater determinant. The orbitals for constructing the initial/final-state Slater determinant are obtained from DFT calculations. The determinant approach for free-electron systems is equivalent to the [MND theory](https://journals.aps.org/rmp/pdf/10.1103/RevModPhys.62.929).
+**MBXASPY** is a python software package initiated by [Yufeng Liang](https://scholar.google.com/citations?user=xiRU9IEAAAAJ&hl=en) at the [Molecular Foundry (TMF)](http://foundry.lbl.gov), [Lawrence Berkeley National Laboratory (LBNL)](https://www.lbl.gov), for predicting x-ray spectra using the determinant formalism. The determinant formalism is based on the independent-electron approximation as used in the density-functional theory (DFT) and hence the many-body wavefunctions used in Fermi's Golden rule take a form of a single Slater determinant. The orbitals for constructing the initial/final-state Slater determinant are obtained from DFT calculations. The determinant approach for free-electron systems is equivalent to the [MND theory](https://journals.aps.org/rmp/pdf/10.1103/RevModPhys.62.929).
 
-To run MBXASPY, you need to first generate eigenvalues and eigenvectors of your Hamiltonian, either from DFT or from tight-binding models. At this stage, MBXASPY is seamingless interfaced with a Fortran software package ShirleyXAS that performs the DFT calculation at the one-body level. ShirleyXAS is modified based on [Quantum Espresso](https://www.quantum-espresso.org) 4.3 by [David Prendergast](https://scholar.google.com/citations?user=Saf7NMcAAAAJ&hl=en) at TMF. If you would like to perform the ShirleyXAS + MBXASPY calculation for interpreting experimental x-ray spectra from first-principles, please contact [David's group at TMF](http://nanotheory.lbl.gov/people/prendergast.html) for accessiblity and guidance. A manual for performing ShirleyXAS + MBXASPY calculation using an the MBXAS module on the [local cluster of LBNL](http://scs.lbl.gov) can be found in the [doc directory](https://github.com/yufengliang/mbxaspy/blob/master/doc/Manual%20for%20ShirleyXAS%20%2B%20MBXASPY.pdf). Please generously cite the below references if you are using the MBXASPY code.
+To run MBXASPY, you need to first generate eigenvalues and eigenvectors of your Hamiltonian, either from DFT or from tight-binding models. At this stage, MBXASPY is seamingless interfaced with a Fortran software package, **ShirleyXAS**, that performs the DFT calculation at the one-body level. ShirleyXAS is modified based on [Quantum Espresso](https://www.quantum-espresso.org) 4.3 by [David Prendergast](https://scholar.google.com/citations?user=Saf7NMcAAAAJ&hl=en) at TMF. There are two main advantages of running ShirleyXAS to feed the input for MBXASPY:
+- ShirleyXAS employs ultrasoft pseudopotentials in PAW formalism, which is fast for large systems or systems with transition metals. A version of pseudopotential library can be found in [here](https://github.com/yufengliang/XCH_pseudos).
+- ShirleyXAS carries out an [efficient band structure extrapolation](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.54.16464) (developed by Eric L. Shirley) to improve quality of x-ray spectra, particularly the smoothness of the extended x-ray absorption fine structure. 
+
+Press N Go
+---------
+If you would like to perform the determinant calculation without worrying too much about installation and supercomputing, please contact [David's group at TMF](http://nanotheory.lbl.gov/people/prendergast.html) for accessiblity to ShirleyXAS and more guidance. We have installed a module on our [local computing cluster of LBNL](http://scs.lbl.gov). If you are a user of the cluster, you may load it by
+```
+module load MBXAS
+```
+The MBXAS contains some automatic scripts that carry out the ShirleyXAS + MBXASPY calculation in a convenient manner. You just need to get your structure ready and change a few parameters in the input file. *Then you can just press and go !* A [manual](https://github.com/yufengliang/mbxaspy/blob/master/doc/Manual%20for%20ShirleyXAS%20%2B%20MBXASPY.pdf) for how to use the MBXAS module can be found in the [doc](https://github.com/yufengliang/mbxaspy/tree/master/doc) directory. A separate manual for MBXASPY can be found in [here](https://github.com/yufengliang/mbxaspy/blob/master/doc/Manual%20for%20MBXASPY.pdf). Please generously cite the below references if you are using the MBXASPY code.
 
 Currently, you may use MBXASPY to obtain x-ray absorption spectra (XAS) and x-ray photoemission spectra (XPS) at the level of MND theory. One important application so far is to interpret the O *K* edge spectra for transition metal oxides. The authors are also actively looking for other applications that require the determinant method.
 
@@ -12,7 +22,11 @@ The [develop branch](https://github.com/yufengliang/mbxaspy/tree/develop) can ha
 
 Development
 ---------
-- Interface MBXASPY with other popular DFT codes.
+- Interface MBXASPY with other popular DFT codes, such as higher versions of Quantum Espresso that use norm-conserving pseudopotentials, 
+[GPAW](https://wiki.fysik.dtu.dk/gpaw/) that is also based on python.
+- Use HSE functionals in the DFT input.
+- Continue to test the RIXS branch (no valence *e-h* interaction included ) against a wide class of materials.
+- Combine the time-dependent density-functional theory (TDDFT) with the determinant formalism for XAS and RIXS.
 
 Reference
 ---------
