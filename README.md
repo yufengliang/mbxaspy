@@ -20,6 +20,10 @@ Currently, you may use MBXASPY to obtain x-ray absorption spectra (XAS) and x-ra
 
 The [develop branch](https://github.com/yufengliang/mbxaspy/tree/develop) can handle eigenvalues and eigenvectors from tight-binding models by setting scf_type ='model'. The [RIXS branch](https://github.com/yufengliang/mbxaspy/tree/rixs) for simulating resonant inelastic x-ray scattering (RIXS) and the [emission branch](https://github.com/yufengliang/mbxaspy/tree/emission) for simulaintg x-ray emission spectra based on the determinant method are being developed and tested.
 
+Samples
+---------
+Please refer to the Chapter 2 of the Shirley + MBXASPY manual for several representative examples with detailed instructions. Input and output data files can be found [here](https://github.com/yufengliang/mbxaspy_samples).
+
 Development
 ---------
 - Interface MBXASPY with other popular DFT codes, such as higher versions of Quantum Espresso that use norm-conserving pseudopotentials, 
