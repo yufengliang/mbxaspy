@@ -18,7 +18,7 @@ The MBXAS contains some automatic scripts that carry out the ShirleyXAS + MBXASP
 
 Currently, you may use MBXASPY to obtain x-ray absorption spectra (XAS) and x-ray photoemission spectra (XPS) at the level of the MND theory. One important application so far is to interpret the O *K* edge spectra for transition metal oxides. The authors are also actively looking for other applications that require the determinant method.
 
-The [develop branch](https://github.com/yufengliang/mbxaspy/tree/develop) can handle eigenvalues and eigenvectors from tight-binding models by setting scf_type ='model'. The [RIXS branch](https://github.com/yufengliang/mbxaspy/tree/rixs) for simulating resonant inelastic x-ray scattering (RIXS) and the [emission branch](https://github.com/yufengliang/mbxaspy/tree/emission) for simulaintg x-ray emission spectra based on the determinant method are being developed and tested.
+The [develop branch](https://github.com/yufengliang/mbxaspy/tree/develop) can handle eigenvalues and eigenvectors from tight-binding models by setting scf_type ='model'. The [RIXS branch](https://github.com/yufengliang/mbxaspy/tree/rixs) for simulating resonant inelastic x-ray scattering (RIXS) and the [emission branch](https://github.com/yufengliang/mbxaspy/tree/emission) for simulating x-ray emission spectra based on the determinant method are being developed and tested.
 
 Samples
 ---------
