@@ -41,6 +41,7 @@ class user_input_class(object):
 
         self.maxfn          = 2         # final-state shakeup order
         self.I_thr          = 1e-3      # intensity cutoff
+        self.n_mat_elem     = 5000      # consider the top n_mat_elem elements of zeta
         
         # control flags
         self.gamma_only         = False         # Using Gamma-point only

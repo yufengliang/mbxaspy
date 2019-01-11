@@ -56,12 +56,12 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
 
     ## Calculate the mother determinant: topmost n x n minor
 
-    det_mom = la.det(xi_mat[0 : n, :])
-    para.print('det_mom = {0}\n'.format(det_mom)) # debug
+    det_ref = la.det(xi_mat[0 : n, :])
+    para.print('det_ref = {0}\n'.format(det_ref)) # debug
     xi_mat_tmp = xi_mat[0 : n, :]
 
     if not fix_v1: # if doing xps then, then add the f^(0) term
-        Af_list.append({'' : sp.array([0.0, det_mom])})
+        Af_list.append({'' : sp.array([0.0, det_ref])})
 
     """
     If the mother determinant is too small, then replace the last row vector.
@@ -71,11 +71,11 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
     This works if we believe the f^(1) group always has very bright transitions. 
     """
     # *** THIS MAY NOT ALWAYS WORK ***
-    if abs(det_mom) < small_thr:
+    if abs(det_ref) < small_thr:
 
         xi_mat_q, xi_mat_r = la.qr(xi_mat.T)
         xi_mat_tmp[n - 1] = xi_mat_q[:, n - 1].T
-        det_mom = la.det(xi_mat_tmp)
+        det_ref = la.det(xi_mat_tmp)
 
     # Construct the zeta-matrix
     xi_mat_inv = la.inv(xi_mat_tmp)
@@ -116,12 +116,12 @@ def quick_det(xi_mat, ener, fix_v1 = True, I_thr = 1e-3, maxfn = 2,
 
     Af = {}
     max_conf = ''
-    Af[max_conf] = sp.array([0.0, det_mom]) # This is considered as the f^(0) configuration
+    Af[max_conf] = sp.array([0.0, det_ref]) # This is considered as the f^(0) configuration
 
     # estimate the overall determinant theshold according to the maximum of the lowest-order contribution
     max_zeta = abs(zeta_mat[:, n - 1]).max() if fix_v1 else abs(zeta_mat).max()
     para.print('max_zeta = {0}'.format(max_zeta))
-    f_lowest_max = max_zeta * abs(det_mom)
+    f_lowest_max = max_zeta * abs(det_ref)
     para.print('filter out transitions with intensity < {0:>6.3}% of the maximal intensity {1}'.format(I_thr * 100, abs(f_lowest_max) ** 2))
     det_thr = abs(I_thr) * f_lowest_max # you should not take the square root of I_thr because | dI / I | ~ | 2 dA / A |
     para.print('determinant threshold = {0}'.format(det_thr))
@@ -357,3 +357,186 @@ def plot_zeta(zeta, postfix = ''):
     #plt.pcolor(sp.array(abs(zeta) / max_zeta), cmap='gray')
     plt.savefig('test_zeta{0}.png'.format(postfix), format = 'png')
     plt.close()
+
+
+def quick_det_dfs(xi_mat, ener, fix_v1 = True, 
+              comm = None,
+              userin = None,
+              zeta_analysis = False):
+
+    """
+
+    maxfn = 1, straightforward for loop
+
+    maxfn > 1, start to do dfs
+
+
+    """
+    
+    maxfn = userin.maxfn
+    e_lo  = userin.ELOW
+    e_hi  = userin.EHIGH
+    nener = userin.NENER
+    msg   = ''
+
+    # parallelism
+    if comm:
+        rank, size = comm.Get_rank(), comm.Get_size()
+    else:
+        rank, size = 0, 1
+
+    ener_axis = sp.linspace(e_lo, e_hi, nener + 1)
+    intensities = [sp.zeros(len(ener_axis)) for i in range(maxfn)]
+
+    m, n = xi_mat.shape
+
+    if m < n:
+        msg = 'no. of rows smaller than no. of columns. '
+        return [], msg
+
+    ## Calculate the reference determinant: topmost n x n minor
+
+    det_ref = la.det(xi_mat[0 : n, :])
+    para.print('det_ref = {0}\n'.format(det_ref)) # debug
+    xi_mat_tmp = xi_mat[0 : n, :]
+
+
+    """
+    If the mother determinant is too small, then replace the last row vector.
+    A small mother determinant may be caused by a weak first transition. The
+    idea is to replace it with a higher-energy and bright transition.
+
+    This works if we believe the f^(1) group always has very bright transitions. 
+    """
+    # *** THIS MAY NOT ALWAYS WORK ***
+    if abs(det_ref) < small_thr:
+
+        xi_mat_q, xi_mat_r = la.qr(xi_mat.T)
+        xi_mat_tmp[n - 1] = xi_mat_q[:, n - 1].T
+        det_ref = la.det(xi_mat_tmp)
+
+    # Construct the zeta-matrix
+    xi_mat_inv = la.inv(xi_mat_tmp)
+
+    ## Now the zeta matrix !
+
+    zeta_mat = sp.matrix(xi_mat[n - 1 : m, :]) * sp.matrix(xi_mat_inv)
+
+    # find the largest matrix elements
+    from heapq import heappush, heappushpop
+    elem_nlargest = []
+    elem_largest = abs(zeta_mat).max()
+
+    for i in range(zeta_mat.shape[0]):
+        for j in range(zeta_mat.shape[1]):
+            if abs(zeta_mat[i, j]) > elem_largest * userin.I_thr:
+                tup = (zeta_mat[i, j], ener[i + n - 1] - ener[j], i, j)
+                if len(elem_nlargest) < userin.n_mat_elem:
+                    heappush(elem_nlargest, tup)
+                else:
+                    heappushpop(elem_nlargest, tup)
+
+    # elem_nlargest.sort(key = lambda x : -abs(x[0])) # sort by intensity
+    elem_nlargest.sort(key = lambda x : x[1]) # sort by increased energy
+
+    ## Let's do the DFS !
+
+    nbnd_min = min(userin.nbnd_f, m)
+
+    if not fix_v1: # if doing xps then, then add the f^(0) term
+
+        add_If(0.0, abs(det_ref) ** 2, e_lo, e_hi, nener, intensities[0])
+
+        if maxfn > 1:
+
+             dfs_cv(2, maxfn, 0.0,
+                    zeta_mat, elem_nlargest, det_ref, 
+                    [], [],
+                    e_lo, e_hi, nener, intensities)
+
+    else:
+    
+        # a big outer loop for the f^(1) terms
+        for c in range(n - 1, nbnd_max):
+
+            i = c - (n - 1)
+            if i % size != rank: continue
+
+            E = ener[c] - ener[n - 1]
+            if E > e_hi: break
+
+            det_val = det_ref * zeta_mat[i, n - 1] 
+            add_If(E, abs(det_val) ** 2, e_lo, e_hi, nener, intensities[0])
+
+            # if higher-order terms are needed
+            if maxfn > 1:
+
+                dfs_cv(2, maxfn, E,
+                       zeta_mat, elem_nlargest, det_ref, 
+                       [c - (n - 1)], [n - 1],
+                       e_lo, e_hi, nener, intensities)
+
+        if comm:
+            for intensity in intensities:
+                intensity = comm.allreduce(intensity, op = MPI.SUM)
+                
+    Af_list = []
+    for intensity in intensities:
+        Af = {}
+        for ind, I in enumerate(intensity):
+            if I > zero_thr:
+                Af['e{}'.format(ind)] = sp.sqrt(I)
+    
+    return Af_list, msg
+
+
+def add_If(e, If, e_lo, e_hi, nener, intensity):
+    ind = int(round((e - e_lo) / (e_hi - e_lo) * nener))
+    if 0 <= ind < len(intensity):
+        intensity[ind] += If
+
+
+def dfs_cv(depth, maxdepth, energy,
+        zeta_mat, elem_nlargest, det_ref,
+        clist, vlist,
+        e_lo, e_hi, nener, intensity):
+
+    """
+    search for sub determinant using depth-first search algorithm.
+    use the n largest elements as a guidance for heuristic search
+
+    """
+    n = zeta.shape[1]
+
+    for zeta_mat_elem, energy_, i, j in elem_nlargest:
+
+        # make sure it will form a larger determinant
+        if i in clist or j in vlist: continue
+
+        # energy filter
+        if energy + energy_ > e_hi: break
+
+        clist.append(i)
+        vlist.append(j)
+
+        # Add intensity
+        E = energy + energy_
+        det_val = det_ref * la.det(zeta_mat[sp.ix_(clist, vlist)])
+        add_If(E, abs(det_val) ** 2, e_lo, e_hi, nener, intensities[depth - 1])
+
+        if depth < maxdepth:
+            
+            dfs_cv(depth + 1, maxdepth, E,
+                    zeta_mat, elem_nlargest, det_ref, 
+                    clist, vlist,
+                    e_lo, e_hi, nener, intensities)
+
+        clist.pop()
+        vlist.pop()
+
+        
+
+
+    
+    
+    

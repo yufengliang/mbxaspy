@@ -198,6 +198,7 @@ for isk in range(pool.nsk):
 
         sticks_all_order = []
         para.print(fn_fmt.format('order', '#sticks', 'stick max', 'os sum'))
+        
         for order, Af in enumerate(Af_list):
 
             sticks = Af_to_sticks(Af)
