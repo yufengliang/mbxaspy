@@ -402,7 +402,7 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
 
 
     """
-    If the mother determinant is too small, then replace the last row vector.
+    If the reference determinant is too small, then replace the last row vector.
     A small mother determinant may be caused by a weak first transition. The
     idea is to replace it with a higher-energy and bright transition.
 
@@ -422,6 +422,18 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
 
     zeta_mat = sp.matrix(xi_mat[n - 1 : m, :]) * sp.matrix(xi_mat_inv)
 
+    # print out a corner of zeta_mat
+    ms, ns = min(ms_const, m - n + 1), min(ns_const, n)
+    para.print('| zeta matrix | (left-upper corner): ')
+    para.print('{0:5}'.format('') + ' '.join(['{0:>12}'.format(_) for _ in range(n - ns, n)]))
+    for im in range(ms):
+        para.print('{0:5}'.format(im) + ' '.join(['{0:>12.3e}'.format(abs(_)) for _ in sp.array(zeta_mat[im, n - ns : n])[0]]))
+    para.print()
+    
+    ## Check the sparsity of the zeta-matrix
+    
+    if zeta_analysis:
+        plot_zeta(zeta_mat)
     # find the largest matrix elements
     from heapq import heappush, heappushpop
     elem_nlargest = []
@@ -451,13 +463,13 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
 
              dfs_cv(2, maxfn, 0.0,
                     zeta_mat, elem_nlargest, det_ref, 
-                    [], [],
+                    [0], [n - 1],
                     e_lo, e_hi, nener, intensities)
 
     else:
     
         # a big outer loop for the f^(1) terms
-        for c in range(n - 1, nbnd_max):
+        for c in range(n - 1, nbnd_min):
 
             i = c - (n - 1)
             if i % size != rank: continue
@@ -485,8 +497,9 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
         Af = {}
         for ind, I in enumerate(intensity):
             if I > zero_thr:
-                Af['e{}'.format(ind)] = sp.sqrt(I)
-    
+                Af['e{}'.format(ind)] = [ener_axis[ind], sp.sqrt(I)]
+        Af_list.append(Af)
+
     return Af_list, msg
 
 
@@ -499,14 +512,14 @@ def add_If(e, If, e_lo, e_hi, nener, intensity):
 def dfs_cv(depth, maxdepth, energy,
         zeta_mat, elem_nlargest, det_ref,
         clist, vlist,
-        e_lo, e_hi, nener, intensity):
+        e_lo, e_hi, nener, intensities):
 
     """
     search for sub determinant using depth-first search algorithm.
     use the n largest elements as a guidance for heuristic search
 
     """
-    n = zeta.shape[1]
+    n = zeta_mat.shape[1]
 
     for zeta_mat_elem, energy_, i, j in elem_nlargest:
 

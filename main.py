@@ -187,12 +187,16 @@ for isk in range(pool.nsk):
         para.sep_line(second_sepl)
         para.print('  Calculating many-body XPS spectra ... ')
 
-        Af_list, msg = quick_det(xi[:, 0 : int(nocc)], ener = fscf.eigval,
-                                 fix_v1 = False, maxfn = userin.maxfn - 1,
-                                 I_thr = userin.I_thr,
-                                 e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
-                                 comm = pool.comm, 
-                                 zeta_analysis = userin.zeta_analysis and ik == 0)
+        #Af_list, msg = quick_det(xi[:, 0 : int(nocc)], ener = fscf.eigval,
+        #                         fix_v1 = False, maxfn = userin.maxfn - 1,
+        #                         I_thr = userin.I_thr,
+        #                         e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
+        #                         comm = pool.comm, 
+        #                         zeta_analysis = userin.zeta_analysis and ik == 0)
+
+        Af_list, msg = quick_det_dfs(xi[:, 0 : int(nocc)], ener = fscf.eigval, fix_v1 = False,
+                                    comm = pool.comm, userin = userin,
+                                    zeta_analysis = userin.zeta_analysis and ik == 0)
 
         spec_xps_isk = init_spec()[0]
 
@@ -255,12 +259,17 @@ for isk in range(pool.nsk):
             # Add the last column
             xi_c_ = sp.concatenate((xi[:, 0 : int(nocc)], xi_c), axis = 1)
 
-            Af_list, msg = quick_det(xi_c_, ener = fscf.eigval,
-                                     fix_v1 = True, maxfn = userin.maxfn,
-                                     I_thr = userin.I_thr,
-                                     e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
-                                     comm = pool.comm, 
-                                     zeta_analysis = userin.zeta_analysis and ik == 0)
+            #Af_list, msg = quick_det(xi_c_, ener = fscf.eigval,
+            #                         fix_v1 = True, maxfn = userin.maxfn,
+            #                         I_thr = userin.I_thr,
+            #                         e_lo_thr = userin.ELOW, e_hi_thr = userin.EHIGH, 
+            #                         comm = pool.comm, 
+            #                         zeta_analysis = userin.zeta_analysis and ik == 0)
+
+
+            Af_list, msg = quick_det_dfs(xi_c_, ener = fscf.eigval, fix_v1 = True,
+                                         comm = pool.comm, userin = userin,
+                                         zeta_analysis = userin.zeta_analysis and ik == 0)
 
             para.print(fn_fmt.format('order', '#sticks', 'stick max', 'os sum'))
 
