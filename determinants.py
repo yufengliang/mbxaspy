@@ -508,7 +508,6 @@ def add_If(e, If, e_lo, e_hi, nener, intensity):
     if 0 <= ind < len(intensity):
         intensity[ind] += If
 
-
 def dfs_cv(depth, maxdepth, energy,
         zeta_mat, elem_nlargest, det_ref,
         clist, vlist,
@@ -520,11 +519,12 @@ def dfs_cv(depth, maxdepth, energy,
 
     """
     n = zeta_mat.shape[1]
+    minv = min(vlist)
 
     for zeta_mat_elem, energy_, i, j in elem_nlargest:
 
         # make sure it will form a larger determinant
-        if i in clist or j in vlist: continue
+        if i in clist or j >= minv: continue
 
         # energy filter
         if energy + energy_ > e_hi: break
