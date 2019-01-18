@@ -438,7 +438,7 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
     from heapq import heappush, heappushpop
     elem_nlargest = []
     elem_largest = abs(zeta_mat).max()
-
+    
     for i in range(zeta_mat.shape[0]):
         for j in range(zeta_mat.shape[1]):
             if abs(zeta_mat[i, j]) > elem_largest * userin.I_thr:
@@ -451,6 +451,13 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
     # elem_nlargest.sort(key = lambda x : -abs(x[0])) # sort by intensity
     elem_nlargest.sort(key = lambda x : x[1]) # sort by increased energy
 
+    # estimate the overall determinant theshold according to the maximum of the lowest-order contribution
+    para.print('|max_zeta| = {0}'.format(elem_largest))
+    elem_thr = abs(min(elem_nlargest, key = lambda x : abs(x[0]))[0])
+    para.print('Select the most important {} matrix elements.'.format(len(elem_nlargest)))
+    para.print('Element threshold = {0}'.format(elem_thr))
+    para.print()
+
     ## Let's do the DFS !
 
     nbnd_min = min(userin.nbnd_f, m)
@@ -462,7 +469,7 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
         if maxfn > 1:
 
              dfs_cv(2, maxfn, 0.0,
-                    zeta_mat, elem_nlargest, det_ref, 
+                    zeta_mat, elem_nlargest, elem_thr, det_ref, 
                     [0], [n - 1],
                     e_lo, e_hi, nener, intensities)
 
@@ -484,7 +491,7 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
             if maxfn > 1:
 
                 dfs_cv(2, maxfn, E,
-                       zeta_mat, elem_nlargest, det_ref, 
+                       zeta_mat, elem_nlargest, elem_thr, det_ref, 
                        [c - (n - 1)], [n - 1],
                        e_lo, e_hi, nener, intensities)
 
@@ -509,7 +516,7 @@ def add_If(e, If, e_lo, e_hi, nener, intensity):
         intensity[ind] += If
 
 def dfs_cv(depth, maxdepth, energy,
-        zeta_mat, elem_nlargest, det_ref,
+        zeta_mat, elem_nlargest, elem_thr, det_ref,
         clist, vlist,
         e_lo, e_hi, nener, intensities):
 
@@ -529,6 +536,16 @@ def dfs_cv(depth, maxdepth, energy,
         # energy filter
         if energy + energy_ > e_hi: break
 
+        dont_calc = False
+        for i_, j_ in zip(clist, vlist):
+            # try to replace i_ with i to see if we can make a smaller permutation 
+            if i < i_:
+                # test the cross elements
+                if abs(zeta_mat[i_, j]) >= elem_thr and abs(zeta_mat[i, j_]) >= elem_thr:
+                    dont_calc = True
+
+        if dont_calc: continue
+ 
         clist.append(i)
         vlist.append(j)
 
@@ -540,7 +557,7 @@ def dfs_cv(depth, maxdepth, energy,
         if depth < maxdepth:
             
             dfs_cv(depth + 1, maxdepth, E,
-                    zeta_mat, elem_nlargest, det_ref, 
+                    zeta_mat, elem_nlargest, elem_thr, det_ref, 
                     clist, vlist,
                     e_lo, e_hi, nener, intensities)
 
