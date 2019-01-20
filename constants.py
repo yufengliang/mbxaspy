@@ -21,6 +21,7 @@ nxyz = 9
 
 # labels of polarization directions
 pol_label = {-2 : 'user evec', -1 : 'angular average', 0 : 'x', 1 : 'y', 2 : 'z'}
+pol2num = {'all' : -1, 'x' : 0, 'y' : 1, 'z' : 2}
 
 nbnd_max = 10000
 

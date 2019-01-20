@@ -564,9 +564,3 @@ def dfs_cv(depth, maxdepth, energy,
         clist.pop()
         vlist.pop()
 
-        
-
-
-    
-    
-    

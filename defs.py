@@ -38,6 +38,7 @@ class user_input_class(object):
         self.nbnd_i         = nbnd_max
         self.nbnd_f         = nbnd_max
         self.nk_use         = 0         # no. of k-points used
+        self.ixyz_list      = 'all x y z' #
 
         self.maxfn          = 2         # final-state shakeup order
         self.I_thr          = 1e-3      # intensity cutoff

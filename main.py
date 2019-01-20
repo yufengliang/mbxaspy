@@ -71,14 +71,23 @@ if userin.spec_analysis:
     spec_xps_g,     spec_xas_g      = init_order(), init_order()
     sticks_xps_g,   sticks_xas_g    = init_order(), init_order()
 
-
 ## setup ixyz list *** need more works
 
-ixyz_list = [-1, 0, 1, 2] # userin.ixyz_list
+ixyz_list = []
+for ixyzc in userin.ixyz_list.split():
+    if ixyzc in pol2num:
+        ixyz_list.append(pol2num[ixyzc])
+    else:
+        para.error('Undefined polarization character {}:'.format(ixyzc))
+        
+# ixyz_list = [-1, 0, 1, 2] # userin.ixyz_list
+para.print()
+para.print('  Doing polarization {} ...'.format(' '.join([pol_label[ixyz] for ixyz in ixyz_list])))
+
 # if not completed
 ixyz_list_ = ixyz_list[:]
 if -1 in ixyz_list:  # need x, y, z to do "-1"
-    ixyz_list_ += [ixyz for ixyz in [0, 1, 2] if ixyz not in ixyz_list ]
+    ixyz_list_ += [ ixyz for ixyz in [0, 1, 2] if ixyz not in ixyz_list ]
 if userin.xps_only: ixyz_list_ = []
 
 # output format
