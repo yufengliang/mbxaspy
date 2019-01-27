@@ -496,8 +496,8 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
                        e_lo, e_hi, nener, intensities)
 
         if comm:
-            for intensity in intensities:
-                intensity = comm.allreduce(intensity, op = MPI.SUM)
+            for i in range(len(intensities)):
+                intensities[i] = comm.allreduce(intensities[i], op = MPI.SUM)
                 
     Af_list = []
     for intensity in intensities:
