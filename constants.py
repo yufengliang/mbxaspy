@@ -20,8 +20,10 @@ data_set = {'integer' : (4, 'i'), 'float' : (4, 'f') , 'double' : (8, 'd'), 'com
 nxyz = 9
 
 # labels of polarization directions
-pol_label = {-2 : 'user evec', -1 : 'angular average', 0 : 'x', 1 : 'y', 2 : 'z'}
-pol2num = {'all' : -1, 'x' : 0, 'y' : 1, 'z' : 2}
+pol_label = {-2 : 'User-defined vector (EVEC)', -1 : 'Angular average', 0 : 'x', 1 : 'y', 2 : 'z'}
+pol2num = {'evec': -2, 'all' : -1, 'x' : 0, 'y' : 1, 'z' : 2}
+# pol2num is for mapping input polarization string into polarization code:
+# e.g., ixyz_list = 'evec all x y z' --> [-2, -1, 0, 1, 2]
 
 nbnd_max = 10000
 

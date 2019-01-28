@@ -82,7 +82,10 @@ for ixyzc in userin.ixyz_list.split():
         
 # ixyz_list = [-1, 0, 1, 2] # userin.ixyz_list
 para.print()
-para.print('  Doing polarization {} ...'.format(' '.join([pol_label[ixyz] for ixyz in ixyz_list])))
+para.print('  Doing polarization: {} ...'.format(', '.join([pol_label[ixyz] for ixyz in ixyz_list])))
+
+if -2 in ixyz_list:
+    para.print('  User-defined polarization vector is: {}'.format(userin.EVEC))
 
 # if not completed
 ixyz_list_ = ixyz_list[:]
@@ -288,7 +291,7 @@ for isk in range(pool.nsk):
 
                 # important information for understanding shakeup effects and convergence
                 if len(sticks) > 0:
-                    para.print(fn_num_fmt.format( order + 1, len(sticks), max([s[2] for s in sticks]), os_sum(sticks)[0] / spec0_i_os_sum[ixyz]))
+                    para.print(fn_num_fmt.format( order + 1, len(sticks), max([s[2] for s in sticks]), os_sum(sticks)[0] / spec0_i_os_sum[ixyz_list_.index(ixyz)]))
 
                 spec_xas_isk.add_sticks(sticks, userin, prefac, mode = 'additive')
 

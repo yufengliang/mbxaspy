@@ -32,13 +32,13 @@ class user_input_class(object):
         self.ESHIFT_FINAL   = 0.0       # eV
         self.NENER          = 100       # eV
         self.SIGMA          = 0.2       # eV
-        self.EVEC           = None      # electric field vector E
+        self.EVEC           = ''      # electric field vector E
         self.smearing       = 'gauss'   # gauss or lor (lorentzian)
 
         self.nbnd_i         = nbnd_max
         self.nbnd_f         = nbnd_max
-        self.nk_use         = 0         # no. of k-points used
-        self.ixyz_list      = 'all x y z' #
+        self.nk_use         = 0                 # no. of k-points used
+        self.ixyz_list      = 'all x y z'       # full list: ixyz_list = 'evec all x y z'
 
         self.maxfn          = 2         # final-state shakeup order
         self.I_thr          = 1e-3      # intensity cutoff
@@ -82,12 +82,13 @@ class user_input_class(object):
         self.path_f = os.path.abspath(self.path_f)
 
         # convert str EVEC into a list
-        if self.EVEC is not None:
+        if len(self.EVEC) > 0:
             try:
-                evec = [float(e) for e in self.EVEC.split()]
-                self.EVEC = evec  
+                evec = [float(e) for e in self.EVEC.split()[:3]]
+                self.EVEC = evec
+                # para.print('Polarization is {}'.format(self.EVEC)) # debug 
             except:
-                para.error(" E-field vector not correct. ")
+                para.error(" Polarization vector '{}' not correct. ".format(self.EVEC))
 
         if not para.comm: self.nproc_per_pool = 1
         # para.print(vars(self)) # debug
