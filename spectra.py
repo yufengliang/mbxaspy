@@ -454,8 +454,4 @@ def afi(xi, iscf, fscf, nocc, ixyz_list, offset = 0.0, evec = None):
             stick[ind] = sum([stick[i] for i in col_ind]) / 3.0
     sticks = sp.column_stack((fscf.eigval[nocc : nbnd_f] + offset, sticks))
     return [list([stick[0], ''] + list(stick[1 : ])) for stick in sticks]
-    
-    
-    
 
-    

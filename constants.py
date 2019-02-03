@@ -25,6 +25,12 @@ pol2num = {'evec': -2, 'all' : -1, 'x' : 0, 'y' : 1, 'z' : 2}
 # pol2num is for mapping input polarization string into polarization code:
 # e.g., ixyz_list = 'evec all x y z' --> [-2, -1, 0, 1, 2]
 
+# the reverse function
+def num2pol(n):
+    for p in pol2num:
+        if pol2num[p] == n: return p
+    return 'undefined'
+
 nbnd_max = 10000
 
 # threshold

@@ -360,9 +360,7 @@ def plot_zeta(zeta, postfix = ''):
 
 
 def quick_det_dfs(xi_mat, ener, fix_v1 = True, 
-              comm = None,
-              userin = None,
-              zeta_analysis = False):
+              comm = None, rootcomm = None, userin = None):
 
     """
 
@@ -432,8 +430,9 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
     
     ## Check the sparsity of the zeta-matrix
     
-    if zeta_analysis:
-        plot_zeta(zeta_mat)
+    # plot_zeta(zeta_mat) # need to improve this in mpi environment
+    U, S, V = la.svd(zeta_mat)
+
     # find the largest matrix elements
     from heapq import heappush, heappushpop
     elem_nlargest = []
@@ -507,7 +506,7 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
                 Af['e{}'.format(ind)] = [ener_axis[ind], sp.sqrt(I)]
         Af_list.append(Af)
 
-    return Af_list, msg
+    return Af_list, msg, S
 
 
 def add_If(e, If, e_lo, e_hi, nener, intensity):
@@ -563,4 +562,25 @@ def dfs_cv(depth, maxdepth, energy,
 
         clist.pop()
         vlist.pop()
+
+def add_S(S1, S2):
+    """
+    Add 1D array S2 to S1.
+
+    Incorporate the situation in which their lengths are not equal.
+    """
+    if len(S2) > len(S1):
+        S1 = sp.array(list(S1) + [0.0] * (len(S2) - len(S1)))
+    S1[: len(S2)] += S2
+    return S1
+
+def allreduce_S(comm, S):
+    """
+    Reduce S of different lengths.
+    """
+    maxlen = comm.allreduce(sp.array([len(S)]), op = MPI.MAX)
+    maxlen = maxlen[0]
+    S = sp.array(list(S) + [0.0] * (maxlen - len(S)))
+    S = comm.allreduce(S, op = MPI.SUM)
+    return S
 

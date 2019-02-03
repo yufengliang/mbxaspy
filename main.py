@@ -12,6 +12,7 @@ from spectra import *
 from analysis import *
 from bse import *
 
+
 ## input user-defined arguments from stdin
 userin.read()
 
@@ -91,15 +92,28 @@ if -2 in ixyz_list:
 ixyz_list_ = ixyz_list[:]
 if -1 in ixyz_list:  # need x, y, z to do "-1"
     ixyz_list_ += [ ixyz for ixyz in [0, 1, 2] if ixyz not in ixyz_list ]
+    ave_ind = ixyz_list_.index(-1)
 if userin.xps_only: ixyz_list_ = []
 
-# output format
+# indices for x, y, z
+col_ind = [ind for ind, ixyz in enumerate(ixyz_list_) if ixyz in [0, 1, 2]]
+
+
+## output format
 fn_fmt      = 'f^(n)/statistics\n!{:>8} {:>10}  {:>12}  {:>12}'
 fn_num_fmt  =                   '!{:>8} {:>10}  {:>12.7}  {:>12.7}' 
 
-# charge transfer
+
+## charge transfer
 qi = [0] * len(ixyz_list_)
 qf = [0] * len(ixyz_list_)
+
+
+## SVD analysis
+if not userin.spec0_only:
+    S_xps = sp.zeros(1)
+    S_xas = [[sp.zeros(1) for ixyz in ixyz_list] for ispin in range(nspin)]
+
 
 ## loop over spin and kpoints
 for isk in range(pool.nsk):
@@ -206,9 +220,13 @@ for isk in range(pool.nsk):
         #                         comm = pool.comm, 
         #                         zeta_analysis = userin.zeta_analysis and ik == 0)
 
-        Af_list, msg = quick_det_dfs(xi[:, 0 : int(nocc)], ener = fscf.eigval, fix_v1 = False,
-                                    comm = pool.comm, userin = userin,
-                                    zeta_analysis = userin.zeta_analysis and ik == 0)
+        Af_list, msg, S = quick_det_dfs(xi[:, 0 : int(nocc)], ener = fscf.eigval, fix_v1 = False,
+                                        comm = pool.comm, userin = userin)
+
+        S_xps = add_S(S_xps, S * weight)
+        #if len(S) > len(S_xps):
+        #    S_xps = sp.array(list(S_xps) + [0.0] * (len(S) - len(S_xps)))
+        #S_xps[: len(S)] += S * weight
 
         spec_xps_isk = init_spec()[0]
 
@@ -254,7 +272,7 @@ for isk in range(pool.nsk):
 
         spec_xas_isk = init_spec()[0]
 
-        for ixyz in ixyz_list_:
+        for ind, ixyz in enumerate(ixyz_list_):
 
             spec_xas_isk.add_sticks([], mode = 'append')
 
@@ -278,10 +296,10 @@ for isk in range(pool.nsk):
             #                         comm = pool.comm, 
             #                         zeta_analysis = userin.zeta_analysis and ik == 0)
 
+            Af_list, msg, S = quick_det_dfs(xi_c_, ener = fscf.eigval, fix_v1 = True,
+                                         comm = pool.comm, rootcomm = pool.rootcomm, userin = userin)
 
-            Af_list, msg = quick_det_dfs(xi_c_, ener = fscf.eigval, fix_v1 = True,
-                                         comm = pool.comm, userin = userin,
-                                         zeta_analysis = userin.zeta_analysis and ik == 0)
+            S_xas[ispin][ind] = add_S(S_xas[ispin][ind], S * weight)
 
             para.print(fn_fmt.format('order', '#sticks', 'stick max', 'os sum'))
 
@@ -302,11 +320,12 @@ for isk in range(pool.nsk):
         # end of ixyz
         # go back and deal with average
         if -1 in ixyz_list_:
-            col_ind = [ind for ind, ixyz in enumerate(ixyz_list_) if ixyz in [0, 1, 2]]
-            spec_xas_isk.average(col_ind, ixyz_list_.index(-1))
+
+            spec_xas_isk.average(col_ind, ave_ind)
+
             if userin.spec_analysis:
                 for order in range(userin.maxfn):
-                    spec_xas_g[order][ispin].average(col_ind, ixyz_list_.index(-1))
+                    spec_xas_g[order][ispin].average(col_ind, ave_ind)
 
         spec_xas_isk.savetxt(spec_xas_fname + postfix, offset = global_offset)
         spec_xas_all.append(spec_xas_isk)
@@ -358,17 +377,46 @@ para.print([pol_label[ixyz_list_[_]] + ': {:12.7}'.format(qf[_]) for _ in range(
 if userin.spec0_only:
     para.done() # debug
 
+
 ## Output BSE spectra
 if userin.want_bse:
     for ispin in range(nspin): spec_bse[ispin].mp_sum(pool.rootcomm) 
     spec_bse = mix_spin(spec_bse)
     if para.isroot(): spec_bse.savetxt(spec_bse_fname, offset = global_offset)
 
+
 ## Output afi spectra
 if userin.afi_analysis:
     for ispin in range(nspin): spec_afi[ispin].mp_sum(pool.rootcomm) 
     spec_afi = mix_spin(spec_afi)
     if para.isroot(): spec_afi.savetxt(spec_afi_fname, offset = global_offset)
+
+
+## Output average singular values
+
+# take care of angular average
+if -1 in ixyz_list_:
+    for ispin in range(nspin):
+        for ind in col_ind:
+            S_xas[ispin][ave_ind] = add_S(S_xas[ispin][ave_ind], S_xas[ispin][ind] / 3.0)
+
+if pool.rootcomm:
+    #maxlen = pool.rootcomm.allreduce(sp.array([len(S_xps)]), op = MPI.MAX)
+    #maxlen = maxlen[0]
+    #S_xps = sp.array(list(S_xps) + [0.0] * (maxlen - len(S_xps)))
+    #S_xps = pool.rootcomm.allreduce(S_xps, op = MPI.SUM)
+    S_xps = allreduce_S(pool.rootcomm, S_xps)
+    for ispin in range(nspin):
+        for ind, ixyz in enumerate(ixyz_list_):
+            S_xas[ispin][ind] = allreduce_S(pool.rootcomm, S_xas[ispin][ind])
+
+if para.isroot(): 
+    sp.savetxt('S_xps.dat', S_xps)
+    for ispin in range(nspin):
+        spinstr = 'ispin{}_'.format(ispin) if nspin == 2 else ''
+        for ind, ixyz in enumerate(ixyz_list_):
+            sp.savetxt('S_xas_{}ixyz-{}.dat'.format(spinstr, num2pol(ixyz)), S_xas[ispin][ind])
+
 
 ## Calculate total many-body spectra 
 
