@@ -441,7 +441,7 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
     for i in range(zeta_mat.shape[0]):
         for j in range(zeta_mat.shape[1]):
             if abs(zeta_mat[i, j]) > elem_largest * userin.I_thr:
-                tup = (zeta_mat[i, j], ener[i + n - 1] - ener[j], i, j)
+                tup = (abs(zeta_mat[i, j]), ener[i + n - 1] - ener[j], i, j)
                 if len(elem_nlargest) < userin.n_mat_elem:
                     heappush(elem_nlargest, tup)
                 else:
