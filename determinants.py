@@ -407,11 +407,11 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
     This works if we believe the f^(1) group always has very bright transitions. 
     """
     # *** THIS MAY NOT ALWAYS WORK ***
-    if abs(det_ref) < small_thr:
+    #if abs(det_ref) < small_thr:
 
-        xi_mat_q, xi_mat_r = la.qr(xi_mat.T)
-        xi_mat_tmp[n - 1] = xi_mat_q[:, n - 1].T
-        det_ref = la.det(xi_mat_tmp)
+    #    xi_mat_q, xi_mat_r = la.qr(xi_mat.T)
+    #    xi_mat_tmp[n - 1] = xi_mat_q[:, n - 1].T
+    #    det_ref = la.det(xi_mat_tmp)
 
     # Construct the zeta-matrix
     xi_mat_inv = la.inv(xi_mat_tmp)
@@ -467,10 +467,15 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
 
         if maxfn > 1:
 
-             dfs_cv(2, maxfn, 0.0,
-                    zeta_mat, elem_nlargest, elem_thr, det_ref, 
-                    [0], [n - 1],
-                    e_lo, e_hi, nener, intensities)
+             #dfs_cv(2, maxfn, 0.0,
+             #       zeta_mat, elem_nlargest, elem_thr, det_ref, 
+             #       [0], [n - 1],
+             #       e_lo, e_hi, nener, intensities)
+
+             dfs_cv(depth = 1, maxdepth = maxfn - 1, energy = 0.0,
+                    zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_ref = det_ref, 
+                    clist = [], vlist = [], xps = True,
+                    e_lo = e_lo, e_hi = e_hi, nener = nener, intensities = intensities)
 
     else:
     
@@ -489,10 +494,10 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
             # if higher-order terms are needed
             if maxfn > 1:
 
-                dfs_cv(2, maxfn, E,
-                       zeta_mat, elem_nlargest, elem_thr, det_ref, 
-                       [c - (n - 1)], [n - 1],
-                       e_lo, e_hi, nener, intensities)
+                dfs_cv(depth = 2, maxdepth = maxfn, energy = E,
+                       zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_ref = det_ref, 
+                       clist = [c - (n - 1)], vlist = [n - 1], xps = False,
+                       e_lo = e_lo, e_hi = e_hi, nener = nener, intensities = intensities)
 
         if comm:
             for i in range(len(intensities)):
@@ -516,7 +521,7 @@ def add_If(e, If, e_lo, e_hi, nener, intensity):
 
 def dfs_cv(depth, maxdepth, energy,
         zeta_mat, elem_nlargest, elem_thr, det_ref,
-        clist, vlist,
+        clist, vlist, xps,
         e_lo, e_hi, nener, intensities):
 
     """
@@ -525,11 +530,12 @@ def dfs_cv(depth, maxdepth, energy,
 
     """
     n = zeta_mat.shape[1]
-    minv = min(vlist)
+    minv = min(vlist) if vlist else n
 
     for zeta_mat_elem, energy_, i, j in elem_nlargest:
 
         # make sure it will form a larger determinant
+        if xps and i == 0 and j == n - 1: continue
         if i in clist or j >= minv: continue
 
         # energy filter
@@ -555,10 +561,10 @@ def dfs_cv(depth, maxdepth, energy,
 
         if depth < maxdepth:
             
-            dfs_cv(depth + 1, maxdepth, E,
-                    zeta_mat, elem_nlargest, elem_thr, det_ref, 
-                    clist, vlist,
-                    e_lo, e_hi, nener, intensities)
+            dfs_cv(depth = depth + 1, maxdepth = maxdepth, energy = E,
+                   zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_ref = det_ref, 
+                   clist = clist, vlist = vlist, xps = xps,
+                   e_lo = e_lo, e_hi = e_hi, nener = nener, intensities = intensities)
 
         clist.pop()
         vlist.pop()
