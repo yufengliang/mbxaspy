@@ -557,7 +557,7 @@ def dfs_cv(depth, maxdepth, energy,
         # Add intensity
         E = energy + energy_
         det_val = det_ref * la.det(zeta_mat[sp.ix_(clist, vlist)])
-        add_If(E, abs(det_val) ** 2, e_lo, e_hi, nener, intensities[depth - 1])
+        add_If(E, abs(det_val) ** 2, e_lo, e_hi, nener, intensities[depth - int(not xps)])
 
         if depth < maxdepth:
             
