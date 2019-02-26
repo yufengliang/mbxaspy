@@ -472,9 +472,12 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
              #       [0], [n - 1],
              #       e_lo, e_hi, nener, intensities)
 
-             dfs_cv(depth = 1, maxdepth = maxfn - 1, energy = 0.0,
+            clist = [-1] * (maxfn - 1)
+            vlist = [-1] * (maxfn - 1)
+
+            dfs_cv(depth = 1, maxdepth = maxfn - 1, energy = 0.0,
                     zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_ref = det_ref, 
-                    clist = [], vlist = [], xps = True,
+                    clist = clist, vlist = vlist, xps = True,
                     e_lo = e_lo, e_hi = e_hi, nener = nener, intensities = intensities)
 
     else:
@@ -494,9 +497,14 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
             # if higher-order terms are needed
             if maxfn > 1:
 
+                clist = [-1] * maxfn
+                clist[0] = c - (n - 1)
+                vlist = [-1] * maxfn
+                vlist[0] = n - 1
+
                 dfs_cv(depth = 2, maxdepth = maxfn, energy = E,
                        zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_ref = det_ref, 
-                       clist = [c - (n - 1)], vlist = [n - 1], xps = False,
+                       clist = clist, vlist = vlist, xps = False,
                        e_lo = e_lo, e_hi = e_hi, nener = nener, intensities = intensities)
 
         if comm:
@@ -551,12 +559,12 @@ def dfs_cv(depth, maxdepth, energy,
 
         if dont_calc: continue
  
-        clist.append(i)
-        vlist.append(j)
+        clist[depth - 1] = i
+        vlist[depth - 1] = j
 
         # Add intensity
         E = energy + energy_
-        det_val = det_ref * la.det(zeta_mat[sp.ix_(clist, vlist)])
+        det_val = det_ref * la.det(zeta_mat[sp.ix_(clist[: depth], vlist[: depth])])
         add_If(E, abs(det_val) ** 2, e_lo, e_hi, nener, intensities[depth - int(not xps)])
 
         if depth < maxdepth:
@@ -566,8 +574,6 @@ def dfs_cv(depth, maxdepth, energy,
                    clist = clist, vlist = vlist, xps = xps,
                    e_lo = e_lo, e_hi = e_hi, nener = nener, intensities = intensities)
 
-        clist.pop()
-        vlist.pop()
 
 def add_S(S1, S2):
     """
