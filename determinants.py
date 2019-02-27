@@ -538,7 +538,7 @@ def dfs_cv(depth, maxdepth, energy,
 
     """
     n = zeta_mat.shape[1]
-    minv = min(vlist) if vlist else n
+    minv = min(vlist[: depth - 1]) if vlist[: depth - 1] else n
 
     for zeta_mat_elem, energy_, i, j in elem_nlargest:
 
@@ -550,7 +550,7 @@ def dfs_cv(depth, maxdepth, energy,
         if energy + energy_ > e_hi: break
 
         dont_calc = False
-        for i_, j_ in zip(clist, vlist):
+        for i_, j_ in zip(clist[: depth - 1], vlist[: depth - 1]):
             # try to replace i_ with i to see if we can make a smaller permutation 
             if i < i_:
                 # test the cross elements
