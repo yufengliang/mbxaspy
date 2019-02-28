@@ -476,7 +476,7 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
             vlist = [-1] * (maxfn - 1)
 
             dfs_cv(depth = 1, maxdepth = maxfn - 1, energy = 0.0,
-                    zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_ref = det_ref, 
+                    zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_thr = elem_thr, det_ref = det_ref, 
                     clist = clist, vlist = vlist, xps = True,
                     e_lo = e_lo, e_hi = e_hi, nener = nener, intensities = intensities)
 
@@ -503,7 +503,7 @@ def quick_det_dfs(xi_mat, ener, fix_v1 = True,
                 vlist[0] = n - 1
 
                 dfs_cv(depth = 2, maxdepth = maxfn, energy = E,
-                       zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_ref = det_ref, 
+                       zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_thr = elem_thr, det_ref = det_ref, 
                        clist = clist, vlist = vlist, xps = False,
                        e_lo = e_lo, e_hi = e_hi, nener = nener, intensities = intensities)
 
@@ -527,8 +527,20 @@ def add_If(e, If, e_lo, e_hi, nener, intensity):
     if 0 <= ind < len(intensity):
         intensity[ind] += If
 
+def sub_det(mat, i0, elem_thr, det_thr):
+    """
+    mat is an n x n array.
+    Determine whether it will contribute to the spectrum by taking into account multiple counting.
+    """
+    n = len(mat)
+    for i in range(i0):
+        if abs(mat[i, 0]) > elem_thr:
+            i_det = la.det(mat[sp.ix_([_ for _ in range(n) if _ != i], list(range(1, n)))])
+            if abs(i_det) > det_thr: return 0.0
+    return la.det(mat)
+
 def dfs_cv(depth, maxdepth, energy,
-        zeta_mat, elem_nlargest, elem_thr, det_ref,
+        zeta_mat, elem_nlargest, elem_thr, det_thr, det_ref,
         clist, vlist, xps,
         e_lo, e_hi, nener, intensities):
 
@@ -549,29 +561,25 @@ def dfs_cv(depth, maxdepth, energy,
         # energy filter
         if energy + energy_ > e_hi: break
 
-        dont_calc = False
-        for i_, j_ in zip(clist[: depth - 1], vlist[: depth - 1]):
-            # try to replace i_ with i to see if we can make a smaller permutation 
-            if i < i_:
-                # test the cross elements
-                if abs(zeta_mat[i_, j]) >= elem_thr and abs(zeta_mat[i, j_]) >= elem_thr:
-                    dont_calc = True
-
-        if dont_calc: continue
- 
-        clist[depth - 1] = i
+        clist_ = list(clist)
+        bisect.insort_left(clist_, i)
         vlist[depth - 1] = j
+
+        # avoid multiple counting and filter out small determinants
+        det_cv = sub_det(zeta_mat[sp.ix_(clist_, vlist[: depth][::-1])], i, elem_thr, det_thr)
+        
+        if abs(det_cv) < det_thr: continue
 
         # Add intensity
         E = energy + energy_
-        det_val = det_ref * la.det(zeta_mat[sp.ix_(clist[: depth], vlist[: depth])])
+        det_val = det_ref * det_cv
         add_If(E, abs(det_val) ** 2, e_lo, e_hi, nener, intensities[depth - int(not xps)])
 
         if depth < maxdepth:
             
             dfs_cv(depth = depth + 1, maxdepth = maxdepth, energy = E,
-                   zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_ref = det_ref, 
-                   clist = clist, vlist = vlist, xps = xps,
+                   zeta_mat = zeta_mat, elem_nlargest = elem_nlargest, elem_thr = elem_thr, det_thr = det_thr, det_ref = det_ref, 
+                   clist = clist_, vlist = vlist, xps = xps,
                    e_lo = e_lo, e_hi = e_hi, nener = nener, intensities = intensities)
 
 
