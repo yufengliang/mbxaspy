@@ -40,3 +40,15 @@ Reference
 - Yufeng Liang and David Prendergast,
 *Quantum many-body effects in x-ray spectra efficiently computed using a basic graph algorithm*,
 [Phys. Rev. B 97, 205127 (2018)](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.97.205127). 
+- Yufeng Liang and David Prendergast,
+*Taming convergence in the determinant approach for x-ray excitation spectra*,
+[Phys. Rev. B 100, 075121 (2019)](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.100.075121).
+
+Publications using MBXASPY
+---------
+- Chang-Ming Jiang, Sebastian E. Reyes-Lillo, Yufeng Liang, Yi-Sheng Liu, *et al*,
+*Electronic Structure and Performance Bottlenecks of CuFeO_2 Photocathodes*,
+[Chem. Mater. 31, 2524 (2019)](https://pubs.acs.org/doi/abs/10.1021/acs.chemmater.9b00009).
+- Sebastian A. Howard, Christopher N. Singh, Galo J. Paez, Matthew J. Wahila, *et al*,
+*Direct observation of delithiation as the origin of analog memristance in Li_xNbO_2*,
+[APL Materials 7, 071103 (2019)](https://aip.scitation.org/doi/full/10.1063/1.5108525)
