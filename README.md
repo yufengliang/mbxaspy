@@ -52,3 +52,6 @@ Publications using MBXASPY
 - Sebastian A. Howard, Christopher N. Singh, Galo J. Paez, Matthew J. Wahila, *et al*,
 *Direct observation of delithiation as the origin of analog memristance in Li_xNbO_2*,
 [APL Materials 7, 071103 (2019)](https://aip.scitation.org/doi/full/10.1063/1.5108525)
+- Galo J Paez, Christopher N Singh, Matthew J Wahila, Keith E Tirpak, *et al*,
+*Simultaneous Structural and Electronic Transitions in Epitaxial VO_2/TiO_2 (001)*,
+[Phys. Rev. Lett. 124, 196402 (2020)](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.124.196402)
